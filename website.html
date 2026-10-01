@@ -1,0 +1,3437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOJIYE STORE - Official E-Commerce & Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #f5c124;
+      --primary-hover: #dda815;
+      --dark: #121620;
+      --dark-2: #191e2b;
+      --dark-card: #202636;
+      --bg: #f4f6f9;
+      --white: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    a { text-decoration: none; color: inherit; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    img { max-width: 100%; display: block; }
+    ul { list-style: none; }
+    .hidden { display: none !important; }
+    .app-view { display: none; }
+    .app-view.active { display: block; }
+    .admin-login-gate {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: var(--dark);
+    }
+    .admin-login-card {
+      width: min(420px, 100%);
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: var(--shadow);
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(28px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(245, 193, 36, 0.0); }
+      50% { box-shadow: 0 0 26px rgba(245, 193, 36, 0.28); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .reveal-item {
+      opacity: 0;
+      animation: fadeUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-weight: 700;
+      transition: 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 12px 20px rgba(17, 24, 39, 0.12);
+    }
+    .btn-primary { background: var(--primary); color: #111827; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-dark { background: var(--dark); color: var(--white); }
+    .btn-dark:hover { background: var(--dark-2); }
+    .btn-danger { background: var(--danger); color: var(--white); }
+    .btn-success { background: var(--success); color: var(--white); }
+    .btn-light { background: #eef2ff; color: var(--dark); }
+    .btn-small { padding: 7px 10px; font-size: 12px; }
+
+    .system-banner {
+      background: #030712;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4.5%;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .system-banner strong { color: #fff; }
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .toggle-pill {
+      background: var(--primary);
+      color: #111827;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .toggle-pill:hover,
+    .icon-btn:hover,
+    .admin-switch:hover,
+    .all-cats-btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 10px 18px rgba(245, 193, 36, 0.18);
+    }
+
+    .store-header {
+      background: var(--dark);
+      color: #fff;
+      padding: 18px 4.5%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 190px;
+    }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 800;
+      overflow: hidden;
+      flex: 0 0 42px;
+    }
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .brand-name {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+    .brand-name span {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--primary);
+      margin-top: 2px;
+    }
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 620px;
+      min-width: 220px;
+    }
+    .search-box {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .search-box input {
+      flex: 1;
+      border: 0;
+      outline: none;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .search-box button {
+      border: 0;
+      background: var(--primary);
+      color: #111827;
+      font-weight: 700;
+      padding: 14px 22px;
+    }
+    .search-results {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      background: var(--white);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 30;
+      display: none;
+    }
+    .search-results.visible { display: block; }
+    .search-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+    }
+    .search-item:hover { background: #f8fafc; }
+    .search-item img {
+      width: 38px;
+      height: 38px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .search-item small { color: var(--muted); }
+
+    .store-actions {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .icon-btn {
+      position: relative;
+      color: #fff;
+      font-size: 19px;
+      cursor: pointer;
+    }
+    .badge {
+      position: absolute;
+      top: -8px;
+      right: -10px;
+      min-width: 18px;
+      height: 18px;
+      padding: 2px 4px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #111827;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-phone {
+      border-left: 1px solid rgba(255,255,255,0.15);
+      padding-left: 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      color: #dbe4f0;
+    }
+    .header-phone strong { color: var(--white); }
+    .header-phone a {
+      color: var(--white);
+      text-decoration: none;
+      margin-left: 6px;
+    }
+    .header-phone a:hover { color: var(--primary); }
+    .admin-switch {
+      padding: 10px 14px;
+      background: var(--primary);
+      color: #111827;
+      border-radius: 8px;
+      font-weight: 700;
+      border: none;
+    }
+
+    .nav-bar {
+      background: #111827;
+      color: #fff;
+      padding: 0 4.5%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .all-cats-btn {
+      background: var(--primary);
+      color: #111827;
+      border: none;
+      padding: 15px 18px;
+      font-weight: 800;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      flex-wrap: wrap;
+      padding: 12px 0;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+    .nav-hot { color: var(--danger) !important; }
+
+    .hero {
+      margin: 22px 4.5% 0;
+      background: linear-gradient(135deg, #0f172a 0%, rgba(17,24,39,0.95) 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 360px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      align-items: center;
+      position: relative;
+      animation: glowPulse 4.5s ease-in-out infinite;
+    }
+    .hero-copy {
+      padding: 52px 48px;
+      color: #fff;
+    }
+    .hero-copy h4 {
+      color: var(--primary);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 14px;
+    }
+    .hero-copy h1 {
+      font-size: clamp(2.2rem, 4vw, 4rem);
+      line-height: 1.02;
+      margin: 8px 0 10px;
+      color: #fff;
+    }
+    .hero-copy h1 mark {
+      background: transparent;
+      color: var(--primary);
+    }
+    .hero-copy h3 {
+      font-size: clamp(1.1rem, 2vw, 1.9rem);
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .hero-copy p {
+      color: rgba(255,255,255,0.75);
+      max-width: 520px;
+      margin-bottom: 22px;
+    }
+    .hero-visual {
+      position: relative;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(245,193,36,0.1), transparent 45%);
+    }
+    .hero-visual img {
+      width: min(84%, 400px);
+      border-radius: 18px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+      animation: floatY 6s ease-in-out infinite;
+    }
+    .hero-copy h1 {
+      text-shadow: 0 0 18px rgba(245, 193, 36, 0.2);
+    }
+
+    .feature-row {
+      margin: 24px 4.5% 0;
+      background: var(--white);
+      box-shadow: var(--shadow);
+      border-radius: 12px;
+      padding: 20px 18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 18px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-right: 1px solid var(--line);
+      padding-right: 12px;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .feature-item:hover,
+    .category-card:hover,
+    .product-card:hover,
+    .stat-card:hover,
+    .widget:hover,
+    .panel:hover,
+    .summary-box:hover,
+    .table-wrap:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+    }
+    .feature-item:last-child { border-right: none; }
+    .feature-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(245,193,36,0.12);
+      color: var(--primary);
+      font-size: 22px;
+    }
+    .feature-copy h5 {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .feature-copy p {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .content-section {
+      margin: 38px 4.5% 0;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .section-head h3 {
+      font-size: 22px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .section-head a {
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0,1fr));
+      gap: 18px;
+    }
+    .category-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      padding: 18px 14px;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      cursor: pointer;
+      background-image: linear-gradient(120deg, rgba(255,255,255,0.2), rgba(255,255,255,0.9), rgba(255,255,255,0.2));
+      background-size: 200% 100%;
+      animation: shimmer 6s linear infinite;
+    }
+    .category-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(245,193,36,0.7);
+    }
+    .category-card img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin: 0 auto 12px;
+    }
+    .category-card h5 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .product-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .toolbar-field {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-width: 170px;
+      color: var(--text);
+    }
+    .toolbar-field select {
+      border: none;
+      outline: none;
+      width: 100%;
+      background: transparent;
+      color: var(--text);
+    }
+    .toolbar-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 18px;
+    }
+    .product-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      position: relative;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: fadeUp 0.7s ease both;
+    }
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 30px rgba(15,23,42,0.12);
+    }
+    .product-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 999px;
+      z-index: 2;
+    }
+    .wishlist-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      color: #9ca3af;
+      border: none;
+      font-size: 16px;
+    }
+    .wishlist-btn.active { color: var(--danger); }
+    .product-image {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      cursor: pointer;
+      background: #f8fafc;
+    }
+    .product-body {
+      padding: 14px 14px 16px;
+    }
+    .product-meta {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .product-name {
+      margin-top: 6px;
+      font-weight: 600;
+      min-height: 48px;
+      cursor: pointer;
+    }
+    .rating-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .stars { color: var(--primary); letter-spacing: 0.05em; }
+    .price-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .price-current {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .price-old {
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: line-through;
+    }
+    .stock-line {
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .stock-line strong { color: var(--success); }
+    .stock-line.warning strong { color: var(--warning); }
+    .stock-line.danger strong { color: var(--danger); }
+    .product-card .btn { width: 100%; }
+
+    .page-box {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin: 18px 4.5%;
+    }
+    .page-box h2 {
+      font-size: 32px;
+      margin-bottom: 18px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-top: 16px;
+    }
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .cart-table, .data-table, .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .cart-table th, .data-table th, .admin-table th,
+    .cart-table td, .data-table td, .admin-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+    .cart-table th, .data-table th, .admin-table th {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .qty-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+    .qty-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: none;
+      background: #eef2ff;
+      color: var(--dark);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .summary-box {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .summary-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .summary-line.total {
+      font-weight: 800;
+      font-size: 18px;
+      border-bottom: none;
+      padding-top: 14px;
+      margin-top: 2px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 16px;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .field-group label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field-group input,
+    .field-group select,
+    .field-group textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: var(--white);
+      color: var(--text);
+      outline: none;
+    }
+    .field-group textarea { resize: vertical; min-height: 100px; }
+    .field-group input:focus,
+    .field-group select:focus,
+    .field-group textarea:focus { border-color: rgba(245,193,36,0.8); }
+
+    .modal-root {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-card {
+      width: min(900px, 92vw);
+      max-height: 90vh;
+      overflow: auto;
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+      padding: 24px;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      background: #f3f4f6;
+      border: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-size: 18px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .product-modal-layout {
+      display: grid;
+      grid-template-columns: 1.08fr 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+    .product-modal-layout img {
+      width: 100%;
+      border-radius: 12px;
+      object-fit: cover;
+      max-height: 420px;
+      background: #f8fafc;
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 16px;
+      margin-top: 28px;
+    }
+    .meta-badge {
+      display: inline-block;
+      background: rgba(245,193,36,0.14);
+      color: #8a6200;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      background: rgba(17,24,39,0.95);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      z-index: 200;
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: 0.25s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .admin-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+    .admin-sidebar {
+      width: 245px;
+      background: var(--dark-2);
+      color: #fff;
+      padding: 16px 0;
+      flex-shrink: 0;
+    }
+    .admin-sidebar .brand { padding: 0 18px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .admin-menu {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .admin-menu button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.8);
+      text-align: left;
+      padding: 12px 18px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .admin-menu button.active,
+    .admin-menu button:hover {
+      background: rgba(245,193,36,0.08);
+      color: var(--primary);
+    }
+    .admin-main {
+      flex: 1;
+      background: var(--bg);
+    }
+    .admin-topbar {
+      background: var(--white);
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .admin-topbar h2 {
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .admin-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .admin-alert {
+      position: relative;
+      color: var(--dark);
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .admin-alert .badge {
+      top: -4px;
+      right: -8px;
+    }
+    .admin-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #fbbf24);
+      color: #111827;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .admin-content {
+      padding: 26px 24px 34px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      background: rgba(245,193,36,0.12);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+    }
+    .stat-icon.sales { background: rgba(59,130,246,0.12); color: var(--info); }
+    .stat-icon.orders { background: rgba(16,185,129,0.12); color: var(--success); }
+    .stat-icon.revenue { background: rgba(245,158,11,0.12); color: var(--warning); }
+    .stat-icon.yearly { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+    .stat-text small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .stat-text strong {
+      font-size: 22px;
+      display: block;
+    }
+    .trend-up { color: var(--success); font-size: 12px; font-weight: 700; }
+    .trend-down { color: var(--danger); font-size: 12px; font-weight: 700; }
+    .dashboard-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .widget {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .widget-header h3 {
+      font-size: 18px;
+    }
+    .list-slim {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .status-pending { background: rgba(245,158,11,0.14); color: #a16207; }
+    .status-confirmed { background: rgba(59,130,246,0.14); color: #1d4ed8; }
+    .status-processing { background: rgba(139,92,246,0.14); color: #7c3aed; }
+    .status-shipped, .status-out-for-delivery { background: rgba(14,165,233,0.12); color: #0369a1; }
+    .status-delivered { background: rgba(16,185,129,0.12); color: #047857; }
+    .status-cancelled { background: rgba(239,68,68,0.12); color: #b91c1c; }
+    .status-visible { background: rgba(16,185,129,0.12); color: #047857; }
+    .status-hidden { background: rgba(107,114,128,0.12); color: #374151; }
+    .status-low { background: rgba(239,68,68,0.12); color: #b91c1c; }
+    .status-normal { background: rgba(16,185,129,0.12); color: #047857; }
+    .empty-state {
+      text-align: center;
+      padding: 32px 18px;
+      color: var(--muted);
+      background: rgba(148,163,184,0.05);
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+    }
+    .table-wrap {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: auto;
+      padding: 10px 0;
+    }
+    .table-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 18px 10px;
+    }
+    .table-panel-header h3 { font-size: 18px; }
+    .table-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .search-mini {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      width: 200px;
+      outline: none;
+    }
+    .cell-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .icon-action {
+      width: 30px;
+      height: 30px;
+      background: #eef2ff;
+      color: var(--dark);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .icon-action.delete { background: rgba(239,68,68,0.12); color: var(--danger); }
+    .icon-action.view { background: rgba(59,130,246,0.12); color: var(--info); }
+    .icon-action.edit { background: rgba(245,193,36,0.14); color: #9a6700; }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .feature-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .category-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .dashboard-row { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .search-wrap { max-width: none; width: 100%; }
+      .header-phone { display: none; }
+      .nav-bar { padding-top: 8px; padding-bottom: 8px; }
+      .all-cats-btn { width: 100%; }
+      .nav-links { width: 100%; justify-content: space-between; gap: 10px 18px; }
+      .feature-row { grid-template-columns: 1fr; }
+      .category-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .admin-shell { display: block; }
+      .admin-sidebar { width: 100%; }
+      .admin-content { padding: 18px 16px; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .product-modal-layout { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+      .page-box { margin: 12px 14px; }
+      .content-section { margin-left: 14px; margin-right: 14px; }
+    }
+    @media (max-width: 540px) {
+      .product-grid { grid-template-columns: 1fr; }
+      .hero-copy { padding: 30px 20px; }
+      .store-header { padding: 14px 14px; }
+      .brand-name { font-size: 16px; }
+      .system-banner { padding: 8px 14px; }
+      .nav-bar { padding-left: 14px; padding-right: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="admin-login-gate" class="admin-login-gate hidden">
+    <div class="admin-login-card">
+      <h2>DOJIYE STORE Admin</h2>
+      <p style="color:var(--muted);margin:8px 0 20px;">Geli email-ka iyo password-ka maamulka.</p>
+      <form onsubmit="authenticateAdmin(event)">
+        <div class="field-group"><label>Email</label><input id="adminLoginEmail" type="email" required autocomplete="username" /></div>
+        <div class="field-group" style="margin-top:14px;"><label>Password</label><input id="adminLoginPassword" type="password" required autocomplete="current-password" /></div>
+        <p id="adminLoginError" style="color:var(--danger);font-size:13px;margin-top:12px;"></p>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px;" type="submit">Gali Admin</button>
+      </form>
+    </div>
+  </div>
+  <div class="system-banner">
+    <div><strong>DOJIYE STORE:</strong> Single-file integrated ecommerce & admin</div>
+    <div class="toggle-group">
+      <span class="toggle-pill" onclick="switchView('store')">Customer Store</span>
+      <span class="toggle-pill admin-only" onclick="switchView('admin')">Admin Panel</span>
+    </div>
+  </div>
+
+  <div id="store-view" class="app-view active">
+    <header class="store-header">
+      <div class="brand" onclick="switchView('store')" style="cursor:pointer;">
+        <div class="brand-mark" data-brand-mark>D</div>
+        <div class="brand-name" data-brand-name>DOJIYE<span>STORE</span></div>
+      </div>
+
+      <div class="search-wrap">
+        <div class="search-box">
+          <input id="searchInput" type="text" placeholder="Search products, category, SKU..." />
+          <button type="button" onclick="applySearch()">Search</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+      </div>
+
+      <div class="store-actions">
+        <div class="icon-btn" title="Wishlist" onclick="renderWishlistPage()"><i class="fa-regular fa-heart"></i><span id="wishlistBadge" class="badge">0</span></div>
+        <div class="icon-btn" title="Cart" onclick="renderCartPage()"><i class="fa-solid fa-cart-shopping"></i><span id="cartBadge" class="badge">0</span></div>
+        <div class="icon-btn" title="Account" onclick="renderAccountPage()"><i class="fa-regular fa-user"></i></div>
+        <div class="header-phone">
+          <strong>0933572122</strong>
+          <a data-store-call href="tel:0933572122" title="Call DOJIYE STORE"><i class="fa-solid fa-phone"></i></a>
+          <a data-store-whatsapp href="https://wa.me/251933572122" target="_blank" rel="noopener" title="WhatsApp DOJIYE STORE"><i class="fa-brands fa-whatsapp"></i></a>
+          <span><i class="fa-solid fa-location-dot"></i> Jigjiga, Ethiopia</span>
+        </div>
+        <button class="admin-switch admin-only" onclick="switchView('admin')">Admin</button>
+      </div>
+    </header>
+
+    <nav class="nav-bar">
+      <button class="all-cats-btn" onclick="currentFilters.category=''; renderStoreHome();"><i class="fa-solid fa-bars"></i> All Categories</button>
+      <ul class="nav-links">
+        <li><a href="#" class="active" onclick="renderStoreHome(); return false;">Home</a></li>
+        <li><a href="#" onclick="renderShopPage(); return false;">Shop</a></li>
+        <li><a href="#" onclick="currentFilters.category='Drinks'; renderShopPage(); return false;">Categories</a></li>
+        <li><a href="#" onclick="return false;">About Us</a></li>
+        <li><a href="#" onclick="return false;">Contact Us</a></li>
+        <li><a href="#" class="nav-hot" onclick="currentFilters.category=''; currentFilters.sort='discount'; renderShopPage(); return false;">Hot Deals</a></li>
+      </ul>
+    </nav>
+
+    <main id="store-content"></main>
+
+    <footer style="background:#111827;color:#fff;padding:32px 4.5%;text-align:center;font-size:13px;">&copy; 2026 DOJIYE STORE. Your Family Super Market. All rights reserved.</footer>
+  </div>
+
+  <div id="admin-view" class="app-view">
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <div class="brand">
+          <div class="brand-mark" data-brand-mark>D</div>
+          <div class="brand-name" data-brand-name>DOJIYE<span>STORE</span></div>
+        </div>
+
+        <div class="admin-menu">
+          <button class="active" onclick="renderAdminDashboard()"><i class="fa-solid fa-chart-pie"></i> Dashboard</button>
+          <button onclick="renderAdminProducts()"><i class="fa-solid fa-box"></i> Products</button>
+          <button onclick="renderAdminCategories()"><i class="fa-solid fa-tags"></i> Categories</button>
+          <button onclick="renderAdminOrders()"><i class="fa-solid fa-cart-shopping"></i> Orders</button>
+          <button onclick="renderAdminCustomers()"><i class="fa-solid fa-users"></i> Customers</button>
+          <button onclick="renderAdminSuppliers()"><i class="fa-solid fa-truck-field"></i> Suppliers</button>
+          <button onclick="renderAdminCoupons()"><i class="fa-solid fa-ticket"></i> Coupons</button>
+          <button onclick="renderAdminReports()"><i class="fa-solid fa-chart-line"></i> Reports &amp; Analytics</button>
+          <button onclick="renderAdminPayments()"><i class="fa-solid fa-credit-card"></i> Payments</button>
+          <button onclick="renderAdminDeliveries()"><i class="fa-solid fa-truck"></i> Delivery</button>
+          <button onclick="renderAdminStockAlerts()"><i class="fa-solid fa-triangle-exclamation"></i> Stock Alert</button>
+          <button onclick="renderAdminImages()"><i class="fa-solid fa-images"></i> Website Images</button>
+          <button onclick="renderAdminSettings()"><i class="fa-solid fa-gear"></i> Website Settings</button>
+          <button onclick="renderAccountPage()"><i class="fa-solid fa-user-circle"></i> Profile</button>
+          <button onclick="switchView('store')"><i class="fa-solid fa-store"></i> Back to Store</button>
+        </div>
+      </aside>
+
+      <main class="admin-main">
+        <div class="admin-topbar">
+          <h2 id="adminTitle">Dashboard</h2>
+          <div class="admin-topbar-right">
+            <div class="admin-alert" onclick="openNotificationsModal()">
+              <i class="fa-regular fa-bell"></i>
+              <span id="adminNotifBadge" class="badge">0</span>
+            </div>
+            <div class="admin-user">
+              <div class="avatar">A</div>
+              <span>Admin User</span>
+            </div>
+          </div>
+        </div>
+        <div id="admin-content" class="admin-content"></div>
+      </main>
+    </div>
+  </div>
+
+  <div id="modal-root" class="modal-root hidden" onclick="if (event.target.id === 'modal-root') closeModal();">
+    <div id="modal-card" class="modal-card"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const DB_KEYS = {
+      products: 'dojiye_products',
+      categories: 'dojiye_categories',
+      cart: 'dojiye_cart',
+      wishlist: 'dojiye_wishlist',
+      orders: 'dojiye_orders',
+      customers: 'dojiye_customers',
+      coupons: 'dojiye_coupons',
+      notifications: 'dojiye_notifications',
+      settings: 'dojiye_settings',
+      users: 'dojiye_users',
+      payments: 'dojiye_payments',
+      deliveries: 'dojiye_deliveries',
+      suppliers: 'dojiye_suppliers',
+      accountClosures: 'dojiye_account_closures'
+    };
+
+    const SUPABASE_TABLE_MAP = {
+      products: 'products',
+      categories: 'categories',
+      cart: 'cart',
+      wishlist: 'wishlist',
+      orders: 'orders',
+      customers: 'customers',
+      coupons: 'coupons',
+      notifications: 'notifications',
+      settings: 'settings',
+      users: 'users',
+      payments: 'payments',
+      deliveries: 'deliveries',
+      suppliers: 'suppliers',
+      accountClosures: 'account_closures'
+    };
+    const SUPABASE_DATA_TABLE = 'dojiye_store_data';
+
+    const supabaseConfig = window.DOJIYE_SUPABASE_CONFIG || {
+      url: 'https://wokfwbjlmeandlfvgtkk.supabase.co',
+      anonKey: 'sb_publishable_n_YzqnUGwIEHSEEPXtKXzQ_gsYjJmwv'
+    };
+
+    const supabase = supabaseConfig.url && supabaseConfig.anonKey && typeof window.supabase !== 'undefined'
+      ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
+      : null;
+    let supabaseSyncReady = false;
+
+    async function hydrateFromSupabase() {
+      if (!supabase) return false;
+      try {
+        const { data, error } = await supabase
+          .from(SUPABASE_DATA_TABLE)
+          .select('key,data');
+        if (error) {
+          console.warn(`Supabase fetch failed for table: ${SUPABASE_DATA_TABLE}`, error.message);
+          return false;
+        }
+        for (const row of data || []) {
+          if (Object.values(DB_KEYS).includes(row.key)) {
+            localStorage.setItem(row.key, JSON.stringify(row.data));
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error('Supabase hydration error:', error);
+        return false;
+      }
+    }
+
+    async function syncLocalDataToSupabase() {
+      if (!supabase) return false;
+      try {
+        const rows = Object.values(DB_KEYS).map(storageKey => ({
+          key: storageKey,
+          data: db.get(storageKey, [])
+        }));
+        const { error } = await supabase
+          .from(SUPABASE_DATA_TABLE)
+          .upsert(rows, { onConflict: 'key' });
+        if (error) {
+          console.warn(`Supabase upsert failed for ${SUPABASE_DATA_TABLE}:`, error.message);
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.error('Supabase sync error:', error);
+        return false;
+      }
+    }
+
+    let supabaseSyncTimer;
+    function scheduleSupabaseSync() {
+      if (!supabase || !supabaseSyncReady) return;
+      clearTimeout(supabaseSyncTimer);
+      supabaseSyncTimer = setTimeout(() => syncLocalDataToSupabase(), 500);
+    }
+
+    const defaultSettings = {
+      storeName: 'DOJIYE STORE',
+      phone: '0933572122',
+      email: 'info@dojiye.com',
+      city: 'Jigjiga, Ethiopia',
+      currency: 'ETB',
+      deliveryFee: 50,
+      taxRate: 5,
+      lowStockThreshold: 5,
+      storeDescription: 'Your Family Super Market.',
+      logoUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=80&q=80',
+      heroImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'
+    };
+
+    const defaultCategories = [
+      { id: 'cat_drinks', name: 'Drinks', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=200&q=80' },
+      { id: 'cat_snacks', name: 'Snacks', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80' },
+      { id: 'cat_cosmetics', name: 'Cosmetics', image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=200&q=80' },
+      { id: 'cat_food', name: 'Food', image: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=200&q=80' },
+      { id: 'cat_baby', name: 'Baby Care', image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=200&q=80' },
+      { id: 'cat_electronics', name: 'Electronics', image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=200&q=80' }
+    ];
+
+    const defaultProducts = [
+      { id: 'prod_1', name: 'Nesquik Chocolate 400g', sku: 'NES-001', category: 'Snacks', price: 120, oldPrice: 150, discount: 20, stock: 15, rating: 4.5, reviews: 24, status: 'Visible', image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=500&q=80', description: 'Delicious chocolate drink powder for everyday family breakfast and smooth sweet shakes.', feature: true, newest: true },
+      { id: 'prod_2', name: 'Coca Cola 1.5L', sku: 'COC-002', category: 'Drinks', price: 35, oldPrice: 40, discount: 12, stock: 3, rating: 5, reviews: 18, status: 'Visible', image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=500&q=80', description: 'Classic Coca Cola bottle with a crisp refreshing taste.', feature: true, newest: false },
+      { id: 'prod_3', name: 'Sunlight Detergent 2kg', sku: 'SUN-003', category: 'Food', price: 180, oldPrice: 200, discount: 10, stock: 4, rating: 4, reviews: 32, status: 'Visible', image: 'https://images.unsplash.com/photo-1585842378054-ee2e52f94ba2?auto=format&fit=crop&w=500&q=80', description: 'Fresh scent and deep clean detergent for cleaner and brighter fabrics.', feature: true, newest: false },
+      { id: 'prod_4', name: 'Nivea Body Lotion 400ml', sku: 'NIV-004', category: 'Cosmetics', price: 95, oldPrice: 110, discount: 13, stock: 2, rating: 4.2, reviews: 20, status: 'Visible', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80', description: 'Hydrating lotion for soft, smooth, healthy skin care.', feature: true, newest: true },
+      { id: 'prod_5', name: 'Basmati Rice 5kg', sku: 'BAS-005', category: 'Food', price: 250, oldPrice: 280, discount: 11, stock: 8, rating: 4.8, reviews: 16, status: 'Visible', image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=500&q=80', description: 'Premium long grain rice for family meals and everyday cooking.', feature: true, newest: false },
+      { id: 'prod_6', name: 'Fresh Milk 1L', sku: 'MLK-006', category: 'Drinks', price: 25, oldPrice: 30, discount: 16, stock: 20, rating: 4.7, reviews: 10, status: 'Visible', image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=500&q=80', description: 'Fresh dairy milk packed daily for a healthy family routine.', feature: false, newest: true },
+      { id: 'prod_7', name: 'Baby Diapers Size 4 (40 pcs)', sku: 'BBY-007', category: 'Baby Care', price: 320, oldPrice: 350, discount: 8, stock: 12, rating: 4.9, reviews: 45, status: 'Visible', image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=500&q=80', description: 'Soft, absorbent diapers designed for long lasting comfort.', feature: true, newest: true },
+      { id: 'prod_8', name: 'Wireless Bluetooth Earbuds', sku: 'ELE-008', category: 'Electronics', price: 450, oldPrice: 550, discount: 18, stock: 6, rating: 4.3, reviews: 50, status: 'Visible', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=500&q=80', description: 'Premium earbuds with excellent sound and long battery life.', feature: true, newest: true },
+      { id: 'prod_9', name: 'Lays Potato Chips Party Pack', sku: 'SNA-009', category: 'Snacks', price: 45, oldPrice: 50, discount: 10, stock: 25, rating: 4.6, reviews: 60, status: 'Visible', image: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=500&q=80', description: 'Crunchy, tasty chips perfect for snack time and quick bites.', feature: false, newest: false },
+      { id: 'prod_10', name: 'Organic Olive Oil 1L', sku: 'FOO-010', category: 'Food', price: 210, oldPrice: 240, discount: 12, stock: 10, rating: 4.8, reviews: 19, status: 'Visible', image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=500&q=80', description: 'Cold-pressed extra virgin olive oil for healthy cooking.', feature: true, newest: false }
+    ];
+
+    const defaultOrders = [
+      { id: '#1052', customer: 'Abdullahi Hassan', phone: '+251912050505', city: 'Jigjiga', address: 'Hargeisa Road', amount: 1250, status: 'Pending', date: 'May 31, 2026', payment: 'Cash on Delivery', items: 3 },
+      { id: '#1051', customer: 'Ayaan Mohamed', phone: '+251912040404', city: 'Harar', address: 'Main Street', amount: 650, status: 'Processing', date: 'May 31, 2026', payment: 'E-Birr', items: 2 },
+      { id: '#1050', customer: 'Mohamed Ali', phone: '+251912030303', city: 'Dire Dawa', address: 'Market Area', amount: 2150, status: 'Shipped', date: 'May 30, 2026', payment: 'Card', items: 5 },
+      { id: '#1049', customer: 'Salwa Hussein', phone: '+251912020202', city: 'Jigjiga', address: 'Koodo', amount: 950, status: 'Delivered', date: 'May 30, 2026', payment: 'Cash on Delivery', items: 1 },
+      { id: '#1048', customer: 'Hassan Ahmed', phone: '+251912010101', city: 'Addis', address: 'Bole Road', amount: 1180, status: 'Cancelled', date: 'May 29, 2026', payment: 'Telebirr', items: 4 }
+    ];
+
+    const defaultCustomers = [
+      { id: 'cust_1', name: 'Abdullahi Hassan', phone: '+251912050505', email: 'abdullah@gmail.com', city: 'Jigjiga', totalSpent: 2600, ordersCount: 3, status: 'Active', lastOrder: 'May 31, 2026' },
+      { id: 'cust_2', name: 'Ayaan Mohamed', phone: '+251912040404', email: 'ayaan@gmail.com', city: 'Harar', totalSpent: 1200, ordersCount: 2, status: 'Active', lastOrder: 'May 31, 2026' },
+      { id: 'cust_3', name: 'Salwa Hussein', phone: '+251912020202', email: 'salwa@gmail.com', city: 'Jigjiga', totalSpent: 980, ordersCount: 1, status: 'Active', lastOrder: 'May 30, 2026' },
+      { id: 'cust_4', name: 'Hassan Ahmed', phone: '+251912010101', email: 'hassan@gmail.com', city: 'Addis', totalSpent: 1750, ordersCount: 2, status: 'Inactive', lastOrder: 'May 29, 2026' }
+    ];
+
+    const defaultCoupons = [
+      { id: 'coupon_1', code: 'DOJIYE10', type: 'percentage', value: 10, minOrder: 200, expiry: '2026-12-31', active: true },
+      { id: 'coupon_2', code: 'FREE50', type: 'fixed', value: 50, minOrder: 400, expiry: '2026-10-31', active: true },
+      { id: 'coupon_3', code: 'VIP15', type: 'percentage', value: 15, minOrder: 500, expiry: '2026-08-31', active: false }
+    ];
+
+    const defaultNotifications = [
+      { id: 'notif_1', title: 'New Order', message: 'Order #1052 was placed successfully.', time: '2 minutes ago', read: false },
+      { id: 'notif_2', title: 'Low Stock', message: 'Nivea Body Lotion is low in stock.', time: '12 minutes ago', read: false },
+      { id: 'notif_3', title: 'Customer', message: 'A new customer registered for a wholesale order.', time: '1 hour ago', read: true }
+    ];
+
+    const defaultUsers = [
+      { id: 'user_1', name: 'Admin User', email: 'khadarqadafi@gmail.com', password: 'Dojiye@2026!', role: 'admin' },
+      { id: 'user_2', name: 'Admin User', email: 'admin@dojiye.com', password: 'Dojiye@2026!', role: 'admin' }
+    ];
+
+    const defaultPayments = [
+      { id: 'pay_1', orderId: '#1052', customer: 'Abdullahi Hassan', amount: 1250, method: 'Cash on Delivery', status: 'Pending', date: 'May 31, 2026' },
+      { id: 'pay_2', orderId: '#1051', customer: 'Ayaan Mohamed', amount: 650, method: 'E-Birr', status: 'Paid', date: 'May 31, 2026' },
+      { id: 'pay_3', orderId: '#1050', customer: 'Mohamed Ali', amount: 2150, method: 'Card', status: 'Failed', date: 'May 30, 2026' }
+    ];
+
+    const defaultDeliveries = [
+      { id: 'del_1', orderId: '#1052', customer: 'Abdullahi Hassan', phone: '+251912050505', address: 'Hargeisa Road, Jigjiga', status: 'Preparing', driver: 'Ali', date: 'May 31, 2026' },
+      { id: 'del_2', orderId: '#1051', customer: 'Ayaan Mohamed', phone: '+251912040404', address: 'Main Street, Harar', status: 'Out for Delivery', driver: 'Musa', date: 'May 31, 2026' }
+    ];
+
+    const defaultSuppliers = [
+      { id: 'sup_1', name: 'Jigjiga Wholesale Market', contact: 'Abdi Hassan', phone: '+251911111111', email: 'jigjiga.wholesale@gmail.com', category: 'Food & Drinks', status: 'Active' },
+      { id: 'sup_2', name: 'East Africa Cosmetics', contact: 'Maryam Ali', phone: '+251922222222', email: 'eastafrica.cosmetics@gmail.com', category: 'Cosmetics', status: 'Active' }
+    ];
+
+    const state = {
+      filters: { search: '', category: '', sort: 'default', price: 'all', discount: false },
+      currentTab: 'dashboard',
+      currentProductId: null,
+      currentOrderId: null,
+      cart: [],
+      wishlist: []
+    };
+
+    function parsePersistedValue(raw, fallback) {
+      if (raw === null || raw === undefined || raw === '') return fallback;
+      const text = String(raw).trim();
+      if (!text) return fallback;
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        try {
+          const normalized = text
+            .replace(/""/g, '"')
+            .replace(/\\"/g, '"');
+          return JSON.parse(normalized);
+        } catch (nestedError) {
+          return fallback;
+        }
+      }
+    }
+
+    const db = {
+      get(key, fallback = []) {
+        try {
+          const raw = localStorage.getItem(key);
+          return parsePersistedValue(raw, fallback);
+        } catch (error) {
+          return fallback;
+        }
+      },
+      set(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+        scheduleSupabaseSync();
+      },
+      update(key, updater) {
+        const current = this.get(key, []);
+        const next = updater(current);
+        this.set(key, next);
+        return next;
+      },
+      remove(key) {
+        localStorage.removeItem(key);
+      }
+    };
+
+    function uid(prefix = 'id') {
+      return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+    }
+
+    function seedData() {
+      const keys = Object.entries(DB_KEYS);
+      for (const [name, key] of keys) {
+        if (name === 'products' && !localStorage.getItem(key)) db.set(key, defaultProducts);
+        if (name === 'categories' && !localStorage.getItem(key)) db.set(key, defaultCategories);
+        if (name === 'cart' && !localStorage.getItem(key)) db.set(key, []);
+        if (name === 'wishlist' && !localStorage.getItem(key)) db.set(key, []);
+        if (name === 'orders' && !localStorage.getItem(key)) db.set(key, defaultOrders);
+        if (name === 'customers' && !localStorage.getItem(key)) db.set(key, defaultCustomers);
+        if (name === 'coupons' && !localStorage.getItem(key)) db.set(key, defaultCoupons);
+        if (name === 'notifications' && !localStorage.getItem(key)) db.set(key, defaultNotifications);
+        if (name === 'settings' && !localStorage.getItem(key)) db.set(key, defaultSettings);
+        if (name === 'users' && !localStorage.getItem(key)) db.set(key, defaultUsers);
+        if (name === 'payments' && !localStorage.getItem(key)) db.set(key, defaultPayments);
+        if (name === 'deliveries' && !localStorage.getItem(key)) db.set(key, defaultDeliveries);
+        if (name === 'suppliers' && !localStorage.getItem(key)) db.set(key, defaultSuppliers);
+        if (name === 'accountClosures' && !localStorage.getItem(key)) db.set(key, []);
+      }
+      const users = db.get(DB_KEYS.users, defaultUsers);
+      const previousAdmin = users.find(user => user.role === 'admin' && user.email.toLowerCase() === 'admin@dojiye.com');
+      if (previousAdmin && previousAdmin.password === 'admin123') previousAdmin.password = 'Dojiye@2026!';
+      if (!users.some(user => user.role === 'admin' && user.email.toLowerCase() === 'khadarqadafi@gmail.com')) {
+        users.push(defaultUsers[0]);
+      }
+      db.set(DB_KEYS.users, users);
+    }
+
+    function removeEmailFromOrders() {
+      const orders = db.get(DB_KEYS.orders, defaultOrders);
+      const sanitized = orders.map(order => {
+        const { email, ...orderWithoutEmail } = order;
+        return orderWithoutEmail;
+      });
+      db.set(DB_KEYS.orders, sanitized);
+    }
+
+    function formatMoney(value) {
+      const num = Number(value) || 0;
+      return `${num.toLocaleString()} ${getSettings().currency || 'ETB'}`;
+    }
+
+    function getSettings() {
+      const settings = db.get(DB_KEYS.settings, defaultSettings);
+      if (settings.phone === '+251 915 682 389') {
+        settings.phone = defaultSettings.phone;
+        db.set(DB_KEYS.settings, settings);
+      }
+      return settings;
+    }
+
+    function applyBranding() {
+      const settings = getSettings();
+      const storeName = settings.storeName || defaultSettings.storeName;
+      const parts = storeName.trim().split(/\s+/);
+      const primaryName = parts.shift() || 'DOJIYE';
+      const secondaryName = parts.join(' ') || 'STORE';
+      document.querySelectorAll('[data-brand-name]').forEach(element => {
+        element.innerHTML = `${primaryName}<span>${secondaryName}</span>`;
+      });
+      document.querySelectorAll('[data-brand-mark]').forEach(element => {
+        element.innerHTML = settings.logoUrl
+          ? `<img src="${settings.logoUrl}" alt="${storeName} logo" />`
+          : primaryName.charAt(0).toUpperCase();
+      });
+      document.title = `${storeName} - Official E-Commerce & Admin`;
+      document.querySelector('.system-banner strong').textContent = `${storeName}:`;
+      const phone = document.querySelector('.header-phone strong');
+      const location = document.querySelector('.header-phone span');
+      if (phone) phone.textContent = settings.phone || defaultSettings.phone;
+      if (location) location.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${settings.city || defaultSettings.city}`;
+      const digits = String(settings.phone || defaultSettings.phone).replace(/\D/g, '');
+      const internationalDigits = digits.startsWith('0') ? `251${digits.slice(1)}` : digits;
+      const callLink = document.querySelector('[data-store-call]');
+      const whatsappLink = document.querySelector('[data-store-whatsapp]');
+      if (callLink) callLink.href = `tel:${settings.phone || defaultSettings.phone}`;
+      if (whatsappLink) whatsappLink.href = `https://wa.me/${internationalDigits}`;
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      toast.style.background = type === 'danger' ? 'rgba(239,68,68,0.96)' : type === 'warning' ? 'rgba(245,158,11,0.96)' : 'rgba(17,24,39,0.96)';
+      clearTimeout(showToast.timeout);
+      showToast.timeout = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function switchView(view) {
+      document.getElementById('store-view').classList.toggle('active', view === 'store');
+      document.getElementById('store-view').classList.toggle('hidden', view !== 'store');
+      document.getElementById('admin-view').classList.toggle('active', view === 'admin');
+      document.getElementById('admin-view').classList.toggle('hidden', view !== 'admin');
+      if (view === 'admin') renderAdminDashboard();
+      else renderStoreHome();
+    }
+
+    function setupPageAccess() {
+      const adminPage = new URLSearchParams(window.location.search).has('admin');
+      document.querySelectorAll('.admin-only').forEach(element => {
+        element.hidden = !adminPage;
+        element.style.display = adminPage ? '' : 'none';
+      });
+      if (adminPage) {
+        document.getElementById('store-view').classList.add('hidden');
+        if (sessionStorage.getItem('dojiye_admin_authenticated') === '1') {
+          document.getElementById('admin-view').classList.add('active');
+        } else {
+          document.getElementById('admin-view').classList.add('hidden');
+          document.getElementById('admin-login-gate').classList.remove('hidden');
+        }
+      }
+    }
+
+    function authenticateAdmin(event) {
+      event.preventDefault();
+      const email = document.getElementById('adminLoginEmail').value.trim().toLowerCase();
+      const password = document.getElementById('adminLoginPassword').value;
+      const admin = db.get(DB_KEYS.users, defaultUsers).find(user => user.role === 'admin' && user.email.toLowerCase() === email && user.password === password);
+      if (!admin) {
+        document.getElementById('adminLoginError').textContent = 'Email ama password-ka waa khalad.';
+        return;
+      }
+      sessionStorage.setItem('dojiye_admin_authenticated', '1');
+      document.getElementById('admin-login-gate').classList.add('hidden');
+      document.getElementById('admin-view').classList.remove('hidden');
+      document.getElementById('admin-view').classList.add('active');
+      renderAdminDashboard();
+    }
+
+    function updateBadges() {
+      const cart = db.get(DB_KEYS.cart, []);
+      const wishlist = db.get(DB_KEYS.wishlist, []);
+      const notifications = db.get(DB_KEYS.notifications, []);
+      document.getElementById('cartBadge').textContent = cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+      document.getElementById('wishlistBadge').textContent = wishlist.length;
+      document.getElementById('adminNotifBadge').textContent = notifications.filter(n => !n.read).length;
+    }
+
+    function getFilteredProducts() {
+      let products = db.get(DB_KEYS.products, defaultProducts).filter(item => item.status !== 'Hidden');
+      const q = (state.filters.search || '').trim().toLowerCase();
+      if (q) {
+        products = products.filter(item => [item.name, item.category, item.sku, item.description].join(' ').toLowerCase().includes(q));
+      }
+      if (state.filters.category) {
+        products = products.filter(item => item.category === state.filters.category);
+      }
+      if (state.filters.price !== 'all') {
+        const [min, max] = state.filters.price.split('-').map(Number);
+        products = products.filter(item => item.price >= min && item.price <= max);
+      }
+      if (state.filters.discount) {
+        products = products.filter(item => Number(item.discount) > 0);
+      }
+      switch (state.filters.sort) {
+        case 'price-asc': products.sort((a, b) => a.price - b.price); break;
+        case 'price-desc': products.sort((a, b) => b.price - a.price); break;
+        case 'rating': products.sort((a, b) => b.rating - a.rating); break;
+        case 'newest': products.sort((a, b) => (b.newest ? 1 : 0) - (a.newest ? 1 : 0) || (b.id.localeCompare(a.id))); break;
+        case 'discount': products.sort((a, b) => Number(b.discount) - Number(a.discount)); break;
+        default: products.sort((a, b) => Number(b.feature) - Number(a.feature));
+      }
+      return products;
+    }
+
+    function renderStoreHome() {
+      const root = document.getElementById('store-content');
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const products = getFilteredProducts();
+      let html = `
+        <section class="hero">
+          <div class="hero-copy">
+            <h4>Welcome to</h4>
+            <h1><mark>${getSettings().storeName.split(' ')[0]}</mark> ${getSettings().storeName.split(' ').slice(1).join(' ')}</h1>
+            <h3>${getSettings().storeDescription || defaultSettings.storeDescription}</h3>
+            <p>Waxaad ka helaysaa dhammaan baahiyaha qoyskaaga hal meel.</p>
+            <button class="btn btn-primary" onclick="renderShopPage()">Shop Now</button>
+          </div>
+          <div class="hero-visual">
+            <img src="${getSettings().heroImage || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'}" alt="Supermarket" />
+          </div>
+        </section>
+
+        <section class="feature-row">
+          <div class="feature-item">
+            <div class="feature-icon"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="feature-copy"><h5>Free Delivery</h5><p>Orders over 500 ETB</p></div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="feature-copy"><h5>Safe Payment</h5><p>100% secure payments</p></div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon"><i class="fa-solid fa-medal"></i></div>
+            <div class="feature-copy"><h5>Quality Products</h5><p>Trusted everyday essentials</p></div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon"><i class="fa-solid fa-headset"></i></div>
+            <div class="feature-copy"><h5>24/7 Support</h5><p>Always here to help</p></div>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <div class="section-head">
+            <h3>Categories</h3>
+            <a href="#" onclick="renderShopPage(); return false;">View All</a>
+          </div>
+          <div class="category-grid">
+            ${categories.map(cat => `
+              <div class="category-card" onclick="state.filters.category='${cat.name}'; renderShopPage();">
+                <img src="${cat.image}" alt="${cat.name}" />
+                <h5>${cat.name}</h5>
+              </div>
+            `).join('')}
+          </div>
+        </section>
+
+        <section class="content-section">
+          <div class="section-head">
+            <h3>Featured Products</h3>
+            <a href="#" onclick="renderShopPage(); return false;">View All</a>
+          </div>
+          <div class="product-toolbar">
+            <div class="toolbar-field">
+              <select id="homeCategoryFilter" onchange="state.filters.category = this.value; renderShopPage();">
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="toolbar-field">
+              <select id="homeSortFilter" onchange="state.filters.sort = this.value; renderShopPage();">
+                <option value="default">Default</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="rating">Highest Rated</option>
+                <option value="newest">Newest</option>
+                <option value="discount">Biggest Discount</option>
+              </select>
+            </div>
+            <label class="toolbar-toggle"><input type="checkbox" id="discountToggle" onchange="state.filters.discount = this.checked; renderShopPage();" /> Discount only</label>
+          </div>
+          <div class="product-grid">
+            ${products.length ? products.slice(0, 12).map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products match your search.</div>`}
+          </div>
+        </section>
+      `;
+      root.innerHTML = html;
+      document.getElementById('homeCategoryFilter').value = state.filters.category || '';
+      document.getElementById('homeSortFilter').value = state.filters.sort || 'default';
+      document.getElementById('discountToggle').checked = !!state.filters.discount;
+      updateBadges();
+    }
+
+    function renderShopPage() {
+      const root = document.getElementById('store-content');
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const products = getFilteredProducts();
+      root.innerHTML = `
+        <div class="page-box">
+          <div class="section-head" style="margin-bottom:18px;">
+            <h3>Shop</h3>
+            <span style="color:var(--muted);font-size:14px;">${products.length} products</span>
+          </div>
+          <div class="product-toolbar">
+            <div class="toolbar-field">
+              <select id="shopCategoryFilter" onchange="state.filters.category = this.value; renderShopPage();">
+                <option value="">All Categories</option>
+                ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="toolbar-field">
+              <select id="shopPriceFilter" onchange="state.filters.price = this.value; renderShopPage();">
+                <option value="all">Any price</option>
+                <option value="0-100">Under 100 ETB</option>
+                <option value="100-250">100 - 250 ETB</option>
+                <option value="250-500">250 - 500 ETB</option>
+                <option value="500-99999">500+ ETB</option>
+              </select>
+            </div>
+            <div class="toolbar-field">
+              <select id="shopSortFilter" onchange="state.filters.sort = this.value; renderShopPage();">
+                <option value="default">Default</option>
+                <option value="price-asc">Price Low to High</option>
+                <option value="price-desc">Price High to Low</option>
+                <option value="rating">Highest Rated</option>
+                <option value="newest">Newest</option>
+                <option value="discount">Biggest Discount</option>
+              </select>
+            </div>
+            <label class="toolbar-toggle"><input type="checkbox" id="shopDiscountOnly" onchange="state.filters.discount = this.checked; renderShopPage();" /> Discount only</label>
+          </div>
+
+          <div class="product-grid">
+            ${products.length ? products.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products found.</div>`}
+          </div>
+        </div>
+      `;
+      document.getElementById('shopCategoryFilter').value = state.filters.category || '';
+      document.getElementById('shopPriceFilter').value = state.filters.price || 'all';
+      document.getElementById('shopSortFilter').value = state.filters.sort || 'default';
+      document.getElementById('shopDiscountOnly').checked = !!state.filters.discount;
+      updateBadges();
+    }
+
+    function renderProductCard(product) {
+      const wishlist = db.get(DB_KEYS.wishlist, []);
+      const isFav = wishlist.includes(product.id);
+      const stockState = product.stock <= getSettings().lowStockThreshold ? (product.stock === 0 ? 'danger' : 'warning') : 'normal';
+      const stockText = product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? `Low stock (${product.stock})` : `In stock (${product.stock})`;
+      return `
+        <article class="product-card">
+          ${Number(product.discount) > 0 ? `<span class="product-badge">-${product.discount}%</span>` : ''}
+          <button class="wishlist-btn ${isFav ? 'active' : ''}" onclick="toggleWishlist('${product.id}', event)"><i class="fa-solid fa-heart"></i></button>
+          <img class="product-image" src="${product.image}" alt="${product.name}" onclick="openProductModal('${product.id}')" />
+          <div class="product-body">
+            <div class="product-meta">${product.category}</div>
+            <div class="product-name" onclick="openProductModal('${product.id}')">${product.name}</div>
+            <div class="rating-row">
+              <span class="stars">${'★'.repeat(Math.round(product.rating || 0))}${'☆'.repeat(5 - Math.round(product.rating || 0))}</span>
+              <span>(${product.reviews || 0})</span>
+            </div>
+            <div class="price-row">
+              <span class="price-current">${formatMoney(product.price)}</span>
+              ${product.oldPrice ? `<span class="price-old">${formatMoney(product.oldPrice)}</span>` : ''}
+            </div>
+            <div class="stock-line ${stockState}"><strong>${stockText}</strong></div>
+            <button class="btn btn-primary" onclick="addToCart('${product.id}', 1)">Add to Cart</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderCartPage() {
+      const root = document.getElementById('store-content');
+      const cart = db.get(DB_KEYS.cart, []);
+      const settings = getSettings();
+      const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
+      const discount = cart.reduce((sum, item) => sum + ((Number(item.discount) || 0) / 100) * Number(item.price) * Number(item.qty), 0);
+      const delivery = cart.length ? Number(settings.deliveryFee || 0) : 0;
+      const tax = cart.length ? subtotal * (Number(settings.taxRate || 0) / 100) : 0;
+      const total = subtotal + delivery + tax - discount;
+
+      root.innerHTML = `
+        <div class="page-box">
+          <h2>Shopping Cart</h2>
+          <div class="summary-grid">
+            <div class="panel">
+              ${!cart.length ? '<div class="empty-state">Your cart is empty.</div>' : `
+                <table class="cart-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Price</th>
+                      <th>Qty</th>
+                      <th>Total</th>
+                      <th>Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${cart.map(item => `
+                      <tr>
+                        <td>
+                          <div style="display:flex;align-items:center;gap:12px;">
+                            <img src="${item.image}" alt="${item.name}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;" />
+                            <div>
+                              <div style="font-weight:700;">${item.name}</div>
+                              <small style="color:var(--muted);">${item.sku}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>${formatMoney(item.price)}</td>
+                        <td>
+                          <div class="qty-controls">
+                            <button class="qty-btn" onclick="changeQty('${item.id}', -1)">-</button>
+                            <span>${item.qty}</span>
+                            <button class="qty-btn" onclick="changeQty('${item.id}', 1)">+</button>
+                          </div>
+                        </td>
+                        <td>${formatMoney(Number(item.price) * Number(item.qty))}</td>
+                        <td><button class="btn btn-danger btn-small" onclick="removeFromCart('${item.id}')">Remove</button></td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              `}
+            </div>
+            <aside class="summary-box">
+              <h3>Order Summary</h3>
+              <div style="margin-top:14px;">
+                <div class="summary-line"><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
+                <div class="summary-line"><span>Discount</span><span>-${formatMoney(discount)}</span></div>
+                <div class="summary-line"><span>Delivery</span><span>${formatMoney(delivery)}</span></div>
+                <div class="summary-line"><span>Tax</span><span>${formatMoney(tax)}</span></div>
+                <div class="summary-line total"><span>Grand Total</span><span>${formatMoney(total)}</span></div>
+              </div>
+              <div style="display:flex;gap:10px;flex-direction:column;margin-top:18px;">
+                <button class="btn btn-primary" onclick="renderStoreHome()">Continue Shopping</button>
+                <button class="btn btn-dark" onclick="renderCheckoutPage()" ${!cart.length ? 'disabled' : ''}>Proceed to Checkout</button>
+                <button class="btn btn-light" onclick="clearCart()">Clear Cart</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      `;
+      updateBadges();
+    }
+
+    function changeQty(productId, delta) {
+      const cart = db.get(DB_KEYS.cart, []);
+      const item = cart.find(entry => entry.id === productId);
+      if (!item) return;
+      const productMatch = db.get(DB_KEYS.products, defaultProducts).find(product => product.id === productId);
+      const nextQty = Number(item.qty) + Number(delta);
+      if (nextQty <= 0) {
+        removeFromCart(productId); return;
+      }
+      if (productMatch && nextQty > productMatch.stock) {
+        showToast('Quantity exceeds available stock.', 'warning');
+        return;
+      }
+      item.qty = nextQty;
+      db.set(DB_KEYS.cart, cart);
+      renderCartPage();
+    }
+
+    function removeFromCart(productId) {
+      const nextCart = db.get(DB_KEYS.cart, []).filter(item => item.id !== productId);
+      db.set(DB_KEYS.cart, nextCart);
+      updateBadges();
+      renderCartPage();
+      showToast('Item removed from cart.', 'warning');
+    }
+
+    function clearCart() {
+      db.set(DB_KEYS.cart, []);
+      updateBadges();
+      renderCartPage();
+      showToast('Cart cleared.', 'warning');
+    }
+
+    function renderCheckoutPage() {
+      const cart = db.get(DB_KEYS.cart, []);
+      if (!cart.length) {
+        renderCartPage();
+        return;
+      }
+      const settings = getSettings();
+      const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
+      const delivery = Number(settings.deliveryFee || 0);
+      const tax = subtotal * (Number(settings.taxRate || 0) / 100);
+      const total = subtotal + delivery + tax;
+
+      const root = document.getElementById('store-content');
+      root.innerHTML = `
+        <div class="page-box">
+          <h2>Checkout</h2>
+          <div class="summary-grid">
+            <div class="panel">
+              <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                <div class="form-grid">
+                  <div class="field-group">
+                    <label>Full Name</label>
+                    <input type="text" id="customerName" required placeholder="Enter your full name" />
+                  </div>
+                  <div class="field-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="customerPhone" required placeholder="+251 9xx xxx xxx" />
+                  </div>
+                  <div class="field-group">
+                    <label>City</label>
+                    <input type="text" id="customerCity" required placeholder="Jigjiga" />
+                  </div>
+                  <div class="field-group">
+                    <label>Area</label>
+                    <input type="text" id="customerArea" placeholder="Area or neighborhood" />
+                  </div>
+                  <div class="field-group">
+                    <label>Payment Method</label>
+                    <select id="paymentMethod">
+                      <option value="Cash on Delivery">Cash on Delivery</option>
+                      <option value="E-Birr">E-Birr</option>
+                      <option value="CBE Birr">CBE Birr</option>
+                      <option value="Telebirr">Telebirr</option>
+                      <option value="Credit/Debit Card">Credit/Debit Card</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field-group" style="margin-top:16px;">
+                  <label>Full Delivery Address</label>
+                  <input type="text" id="customerAddress" required placeholder="Street, building, district" />
+                </div>
+                <div class="field-group" style="margin-top:16px;">
+                  <label>Delivery Notes</label>
+                  <textarea id="customerNotes" placeholder="Optional instructions for the driver"></textarea>
+                </div>
+                <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+                  <button type="submit" class="btn btn-primary">Place Order</button>
+                  <button type="button" class="btn btn-dark" onclick="renderCartPage()">Back to Cart</button>
+                </div>
+              </form>
+            </div>
+            <aside class="summary-box">
+              <h3>Order Summary</h3>
+              <div style="margin-top:14px;">
+                ${cart.map(item => `
+                  <div class="summary-line"><span>${item.name} x ${item.qty}</span><span>${formatMoney(Number(item.price) * Number(item.qty))}</span></div>
+                `).join('')}
+                <div class="summary-line"><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
+                <div class="summary-line"><span>Delivery</span><span>${formatMoney(delivery)}</span></div>
+                <div class="summary-line"><span>Tax</span><span>${formatMoney(tax)}</span></div>
+                <div class="summary-line total"><span>Grand Total</span><span>${formatMoney(total)}</span></div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleCheckoutSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById('customerName').value.trim();
+      const phone = document.getElementById('customerPhone').value.trim();
+      const city = document.getElementById('customerCity').value.trim();
+      const area = document.getElementById('customerArea').value.trim();
+      const address = document.getElementById('customerAddress').value.trim();
+      const paymentMethod = document.getElementById('paymentMethod').value;
+
+      if (!name || !phone || !city || !address) {
+        showToast('Please complete all required checkout fields.', 'warning');
+        return;
+      }
+
+      const cart = db.get(DB_KEYS.cart, []);
+      if (!cart.length) {
+        showToast('Your cart is empty.', 'warning');
+        return;
+      }
+
+      const settings = getSettings();
+      const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
+      const delivery = Number(settings.deliveryFee || 0);
+      const tax = subtotal * (Number(settings.taxRate || 0) / 100);
+      const discounts = cart.reduce((sum, item) => sum + ((Number(item.discount) || 0) / 100) * Number(item.price) * Number(item.qty), 0);
+      const total = Math.max(subtotal + delivery + tax - discounts, 0);
+
+      const orderId = `#${Math.floor(1000 + Math.random() * 9000)}`;
+      const order = {
+        id: orderId,
+        customer: name,
+        phone,
+        city,
+        area,
+        address,
+        notes: document.getElementById('customerNotes').value.trim(),
+        payment: paymentMethod,
+        amount: total,
+        status: 'Pending',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        items: cart.length,
+        subtotal,
+        delivery,
+        tax,
+        discount: discounts,
+        products: cart.map(item => ({ id: item.id, name: item.name, qty: item.qty, price: item.price }))
+      };
+
+      const orders = db.get(DB_KEYS.orders, []);
+      orders.unshift(order);
+      db.set(DB_KEYS.orders, orders);
+
+      const customers = db.get(DB_KEYS.customers, []);
+      let customer = customers.find(item => item.phone === phone);
+      if (!customer) {
+        customer = {
+          id: uid('cust'),
+          name,
+          phone,
+          city,
+          totalSpent: total,
+          ordersCount: 1,
+          status: 'Active',
+          lastOrder: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        };
+        customers.unshift(customer);
+      } else {
+        customer.totalSpent = Number(customer.totalSpent || 0) + total;
+        customer.ordersCount = Number(customer.ordersCount || 0) + 1;
+        customer.lastOrder = order.date;
+      }
+      db.set(DB_KEYS.customers, customers);
+
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      cart.forEach(item => {
+        const product = products.find(p => p.id === item.id);
+        if (!product) return;
+        const nextStock = Number(product.stock) - Number(item.qty);
+        product.stock = Math.max(nextStock, 0);
+        if (product.stock === 0) product.status = 'Hidden';
+      });
+      db.set(DB_KEYS.products, products);
+
+      const notifications = db.get(DB_KEYS.notifications, []);
+      notifications.unshift({
+        id: uid('notif'),
+        title: 'New Order',
+        message: `Order ${orderId} was placed by ${name}.`,
+        time: 'Just now',
+        read: false
+      });
+      db.set(DB_KEYS.notifications, notifications);
+
+      db.set(DB_KEYS.cart, []);
+      updateBadges();
+      renderOrderConfirmation(orderId);
+      showToast(`Order ${orderId} placed successfully.`, 'success');
+      renderAdminDashboard();
+    }
+
+    function renderOrderConfirmation(orderId) {
+      const root = document.getElementById('store-content');
+      root.innerHTML = `
+        <div class="page-box" style="text-align:center;">
+          <h2 style="color:var(--success);">Order Placed Successfully</h2>
+          <p style="font-size:18px; margin:16px 0;">Your order ID is <strong>${orderId}</strong>.</p>
+          <div class="timeline" style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin:24px 0;">
+            ${['Pending','Confirmed','Processing','Shipped','Delivered'].map((step, idx) => `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:${idx === 0 ? 'var(--primary)' : '#e5e7eb'};color:${idx === 0 ? '#111827' : '#374151'};display:grid;place-items:center;font-weight:700;">${idx + 1}</div>
+                <span style="font-size:12px;">${step}</span>
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn btn-primary" onclick="renderStoreHome()">Back to Store</button>
+        </div>
+      `;
+    }
+
+    function renderWishlistPage() {
+      const wishlist = db.get(DB_KEYS.wishlist, []);
+      const products = db.get(DB_KEYS.products, defaultProducts).filter(product => wishlist.includes(product.id));
+      const root = document.getElementById('store-content');
+      root.innerHTML = `
+        <div class="page-box">
+          <h2>Wishlist</h2>
+          <div class="product-grid">
+            ${products.length ? products.map(renderProductCard).join('') : '<div class="empty-state" style="grid-column:1/-1;">Your wishlist is empty.</div>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAccountPage() {
+      const currentUser = JSON.parse(localStorage.getItem('dojiye_current_user') || 'null');
+      const root = document.getElementById('store-content');
+      if (currentUser) {
+        const orderHistory = db.get(DB_KEYS.orders, []).filter(order => order.phone && currentUser.phone && order.phone === currentUser.phone);
+        root.innerHTML = `
+          <div class="page-box">
+            <h2>My Account</h2>
+            <div class="summary-grid">
+              <div class="panel">
+                <h3>Profile</h3>
+                <div class="form-grid" style="margin-top:16px;">
+                  <div class="field-group"><label>Name</label><input value="${currentUser.name}" /></div>
+                  <div class="field-group"><label>Email</label><input value="${currentUser.email}" /></div>
+                  <div class="field-group"><label>Phone</label><input value="${currentUser.phone || ''}" /></div>
+                  <div class="field-group"><label>City</label><input value="${currentUser.city || ''}" /></div>
+                </div>
+              </div>
+              <div class="summary-box">
+                <h3>Account Actions</h3>
+                <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+                  <button class="btn btn-primary" onclick="renderWishlistPage()">Wishlist</button>
+                  <button class="btn btn-dark" onclick="renderOrdersHistory()">My Orders</button>
+                  <button class="btn btn-light" onclick="logoutCurrentUser()">Logout</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel" style="margin-top:20px;">
+              <h3>Recent Orders</h3>
+              ${orderHistory.length ? `<table class="data-table" style="margin-top:14px;"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>${orderHistory.slice(0,5).map(order => `<tr><td>${order.id}</td><td>${order.date}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td><td>${formatMoney(order.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state" style="margin-top:14px;">No orders yet.</div>'}
+            </div>
+          </div>
+        `;
+      } else {
+        root.innerHTML = `
+          <div class="page-box">
+            <h2>Account</h2>
+            <div class="summary-grid">
+              <div class="panel">
+                <h3>Login</h3>
+                <form onsubmit="loginUser(event)">
+                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="loginEmail" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="loginPassword" required /></div>
+                  <button class="btn btn-primary" style="margin-top:16px;" type="submit">Login</button>
+                </form>
+              </div>
+              <div class="panel">
+                <h3>Register</h3>
+                <form onsubmit="registerUser(event)">
+                  <div class="field-group" style="margin-top:14px;"><label>Name</label><input type="text" id="registerName" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="registerEmail" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="registerPassword" required /></div>
+                  <button class="btn btn-dark" style="margin-top:16px;" type="submit">Register</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function loginUser(event) {
+      event.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      const users = db.get(DB_KEYS.users, defaultUsers);
+      const match = users.find(item => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
+      if (!match) {
+        showToast('Invalid login details.', 'danger');
+        return;
+      }
+      localStorage.setItem('dojiye_current_user', JSON.stringify({ id: match.id, name: match.name, email: match.email, phone: match.phone || '', city: match.city || '' }));
+      showToast('Login successful.', 'success');
+      renderAccountPage();
+    }
+
+    function registerUser(event) {
+      event.preventDefault();
+      const name = document.getElementById('registerName').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const password = document.getElementById('registerPassword').value.trim();
+      if (!name || !email || !password) {
+        showToast('Please complete all registration details.', 'warning');
+        return;
+      }
+      const users = db.get(DB_KEYS.users, defaultUsers);
+      const exists = users.some(item => item.email.toLowerCase() === email.toLowerCase());
+      if (exists) {
+        showToast('User already exists.', 'warning');
+        return;
+      }
+      const user = { id: uid('user'), name, email, password, role: 'customer', city: 'Jigjiga', phone: '' };
+      users.push(user);
+      db.set(DB_KEYS.users, users);
+      localStorage.setItem('dojiye_current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, phone: user.phone, city: user.city }));
+      showToast('Registration successful.', 'success');
+      renderAccountPage();
+    }
+
+    function logoutCurrentUser() {
+      localStorage.removeItem('dojiye_current_user');
+      renderAccountPage();
+      showToast('Logged out.', 'info');
+    }
+
+    function renderOrdersHistory() {
+      const user = JSON.parse(localStorage.getItem('dojiye_current_user') || 'null');
+      const orders = db.get(DB_KEYS.orders, []).filter(order => user && order.phone && user.phone && order.phone === user.phone);
+      const root = document.getElementById('store-content');
+      root.innerHTML = `
+        <div class="page-box">
+          <h2>My Orders</h2>
+          ${orders.length ? `<table class="data-table"><thead><tr><th>Order ID</th><th>Date</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>${orders.map(order => `<tr><td>${order.id}</td><td>${order.date}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td><td>${formatMoney(order.amount)}</td><td><button class="btn btn-small btn-dark" onclick="viewOrderDetails('${order.id}')">View</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No previous orders found.</div>'}
+        </div>
+      `;
+    }
+
+    function viewOrderDetails(orderId) {
+      const order = db.get(DB_KEYS.orders, []).find(item => item.id === orderId);
+      if (!order) return;
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>Order Details</h2>
+        <div style="margin-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+          <div class="field-group"><label>Order ID</label><input value="${order.id}" readonly /></div>
+          <div class="field-group"><label>Date</label><input value="${order.date}" readonly /></div>
+          <div class="field-group"><label>Customer</label><input value="${order.customer}" readonly /></div>
+          <div class="field-group"><label>Phone</label><input value="${order.phone || ''}" readonly /></div>
+          <div class="field-group"><label>Address</label><input value="${order.address || ''}" readonly /></div>
+          <div class="field-group"><label>Status</label><input value="${order.status}" readonly /></div>
+          <div class="field-group"><label>Payment</label><input value="${order.payment || ''}" readonly /></div>
+          <div class="field-group"><label>Total</label><input value="${formatMoney(order.amount)}" readonly /></div>
+        </div>
+        <div style="margin-top:16px;">
+          <h3>Products</h3>
+          ${order.products ? order.products.map(prod => `<div class="summary-line"><span>${prod.name} x ${prod.qty}</span><span>${formatMoney(prod.price * prod.qty)}</span></div>`).join('') : ''}
+        </div>
+        <button class="btn btn-primary" style="margin-top:18px;" onclick="openInvoice('${order.id}')">Print Invoice</button>
+      `);
+    }
+
+    function toggleWishlist(productId, event) {
+      event.stopPropagation();
+      const wishlist = db.get(DB_KEYS.wishlist, []);
+      const next = wishlist.includes(productId) ? wishlist.filter(item => item !== productId) : [...wishlist, productId];
+      db.set(DB_KEYS.wishlist, next);
+      updateBadges();
+      renderStoreHome();
+      showToast(next.includes(productId) ? 'Added to wishlist.' : 'Removed from wishlist.', 'info');
+    }
+
+    function addToCart(productId, qty = 1) {
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const product = products.find(item => item.id === productId);
+      if (!product) return;
+      if (Number(product.stock) <= 0) {
+        showToast('This item is out of stock.', 'danger');
+        return;
+      }
+      const cart = db.get(DB_KEYS.cart, []);
+      const match = cart.find(item => item.id === productId);
+      const nextQty = Number(match ? match.qty : 0) + Number(qty);
+      if (nextQty > Number(product.stock)) {
+        showToast('Only available stock remains in the cart.', 'warning');
+        return;
+      }
+      if (match) match.qty = nextQty; else cart.push({ ...product, qty: nextQty });
+      db.set(DB_KEYS.cart, cart);
+      updateBadges();
+      showToast(`${product.name} added to cart.`, 'success');
+    }
+
+    function openProductModal(productId) {
+      const product = db.get(DB_KEYS.products, defaultProducts).find(item => item.id === productId);
+      if (!product) return;
+      const related = db.get(DB_KEYS.products, defaultProducts).filter(item => item.category === product.category && item.id !== product.id).slice(0, 3);
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="product-modal-layout">
+          <div>
+            <img src="${product.image}" alt="${product.name}" />
+          </div>
+          <div>
+            <div class="meta-badge">${product.category}</div>
+            <h2>${product.name}</h2>
+            <div class="rating-row" style="margin:12px 0;">
+              <span class="stars">${'★'.repeat(Math.round(product.rating || 0))}${'☆'.repeat(5 - Math.round(product.rating || 0))}</span>
+              <span>(${product.reviews || 0} Reviews)</span>
+            </div>
+            <div class="price-row">
+              <span class="price-current">${formatMoney(product.price)}</span>
+              ${product.oldPrice ? `<span class="price-old">${formatMoney(product.oldPrice)}</span>` : ''}
+            </div>
+            <div class="stock-line ${product.stock <= getSettings().lowStockThreshold ? 'warning' : 'normal'}" style="margin:10px 0 18px;"><strong>${product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? 'Low stock' : 'In stock'}</strong></div>
+            <div class="qty-controls" style="margin-bottom:16px;">
+              <button class="qty-btn" onclick="changeProductQty(-1)">-</button>
+              <span id="detailQty">1</span>
+              <button class="qty-btn" onclick="changeProductQty(1)">+</button>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="buyNow('${product.id}')">Buy Now</button>
+              <button class="btn btn-dark" onclick="addToCart('${product.id}', Number(document.getElementById('detailQty').textContent || 1)); closeModal();">Add to Cart</button>
+              <button class="btn btn-light" onclick="toggleWishlist('${product.id}', event)">Wishlist</button>
+            </div>
+            <p style="margin-top:18px;color:var(--muted);">${product.description}</p>
+            <div style="margin-top:16px; display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; color:var(--muted); font-size:13px;">
+              <div><strong>SKU:</strong> ${product.sku}</div>
+              <div><strong>Stock:</strong> ${product.stock}</div>
+              <div><strong>Category:</strong> ${product.category}</div>
+              <div><strong>Discount:</strong> ${product.discount || 0}%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-grid">
+          ${related.length ? related.map(item => `
+            <div class="product-card" style="box-shadow:none;">
+              <img class="product-image" src="${item.image}" alt="${item.name}" onclick="openProductModal('${item.id}'); closeModal();" />
+              <div class="product-body">
+                <div class="product-name" onclick="openProductModal('${item.id}'); closeModal();">${item.name}</div>
+                <div class="price-row"><span class="price-current">${formatMoney(item.price)}</span></div>
+              </div>
+            </div>
+          `).join('') : '<div class="empty-state" style="grid-column:1/-1;">No related items found.</div>'}
+        </div>
+      `);
+      window.currentProductInModal = productId;
+    }
+
+    function changeProductQty(delta) {
+      const el = document.getElementById('detailQty');
+      if (!el) return;
+      let qty = Number(el.textContent || 1) + delta;
+      if (qty < 1) qty = 1;
+      el.textContent = qty;
+    }
+
+    function buyNow(productId) {
+      const qty = Number(document.getElementById('detailQty')?.textContent || 1) || 1;
+      addToCart(productId, qty);
+      closeModal();
+      renderCartPage();
+    }
+
+    function openModal(content) {
+      document.getElementById('modal-card').innerHTML = content;
+      document.getElementById('modal-root').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-root').classList.add('hidden');
+      document.getElementById('modal-card').innerHTML = '';
+    }
+
+    function applySearch() {
+      state.filters.search = document.getElementById('searchInput').value.trim();
+      renderStoreHome();
+    }
+
+    function handleSearchInput() {
+      const value = document.getElementById('searchInput').value.trim();
+      state.filters.search = value;
+      const suggestions = document.getElementById('searchResults');
+      if (!value) {
+        suggestions.classList.remove('visible');
+        suggestions.innerHTML = '';
+        renderStoreHome();
+        return;
+      }
+      const matches = db.get(DB_KEYS.products, defaultProducts).filter(product => [product.name, product.category, product.sku, product.description].join(' ').toLowerCase().includes(value.toLowerCase())).slice(0, 6);
+      if (!matches.length) {
+        suggestions.innerHTML = '<div class="search-item"><span>No products found</span></div>';
+        suggestions.classList.add('visible');
+        return;
+      }
+      suggestions.innerHTML = matches.map(item => `
+        <div class="search-item" onclick="document.getElementById('searchInput').value='${item.name}'; state.filters.search='${item.name}'; renderStoreHome(); document.getElementById('searchResults').classList.remove('visible');">
+          <img src="${item.image}" alt="${item.name}" />
+          <div>
+            <div style="font-weight:700;">${item.name}</div>
+            <small>${item.category} • ${formatMoney(item.price)}</small>
+          </div>
+        </div>
+      `).join('');
+      suggestions.classList.add('visible');
+    }
+
+    function openNotificationsModal() {
+      const items = db.get(DB_KEYS.notifications, []);
+      items.forEach(item => item.read = true);
+      db.set(DB_KEYS.notifications, items);
+      updateBadges();
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>Notifications</h2>
+        <div style="margin-top:18px; display:flex;flex-direction:column;gap:12px;">
+          ${items.length ? items.map(item => `
+            <div style="padding:14px;border:1px solid var(--line);border-radius:10px;background:${item.read ? '#f8fafc' : '#fff8e7'};">
+              <div style="font-weight:700;">${item.title}</div>
+              <div style="color:var(--muted);margin-top:4px;">${item.message}</div>
+              <small style="color:var(--muted);display:block;margin-top:8px;">${item.time}</small>
+            </div>
+          `).join('') : '<div class="empty-state">No notifications.</div>'}
+        </div>
+      `);
+    }
+
+    function renderAdminDashboard() {
+      setAdminTitle('Dashboard');
+      const orders = db.get(DB_KEYS.orders, []);
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const customers = db.get(DB_KEYS.customers, []);
+      const totalSales = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const today = new Date().toDateString();
+      const todaysOrders = orders.filter(order => new Date(order.date).toDateString() === today || order.date.includes(new Date().toLocaleString('en-US', { month: 'short' })));
+      const todaysSales = todaysOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const lowStockProducts = products.filter(product => Number(product.stock) <= Number(getSettings().lowStockThreshold || 5) && product.status !== 'Hidden');
+      const topProducts = [...products].sort((a, b) => Number(b.reviews || 0) - Number(a.reviews || 0)).slice(0, 4);
+
+      const salesData = [12000, 18000, 14000, 22000, 19000, 26000, 31000];
+      const adminHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon sales"><i class="fa-solid fa-bag-shopping"></i></div>
+            <div class="stat-text">
+              <small>Today's Sales</small>
+              <strong>${formatMoney(todaysSales || 0)}</strong>
+              <span class="trend-up">+12.5%</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orders"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div class="stat-text">
+              <small>Today's Orders</small>
+              <strong>${todaysOrders.length || 0}</strong>
+              <span class="trend-up">+8.3%</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon revenue"><i class="fa-solid fa-wallet"></i></div>
+            <div class="stat-text">
+              <small>Monthly Revenue</small>
+              <strong>${formatMoney(totalSales * 0.42)}</strong>
+              <span class="trend-up">+15.7%</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yearly"><i class="fa-solid fa-money-bill-wave"></i></div>
+            <div class="stat-text">
+              <small>Yearly Revenue</small>
+              <strong>${formatMoney(totalSales * 1.35)}</strong>
+              <span class="trend-up">+22.1%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Sales Overview</h3></div>
+            <canvas id="salesOverviewChart" height="120"></canvas>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Revenue Summary</h3></div>
+            <div class="list-slim">
+              <div class="list-row"><span>Today</span><strong>${formatMoney(todaysSales || 0)}</strong></div>
+              <div class="list-row"><span>Month</span><strong>${formatMoney(totalSales * 0.42)}</strong></div>
+              <div class="list-row"><span>Year</span><strong>${formatMoney(totalSales * 1.35)}</strong></div>
+              <div class="list-row"><span>Total</span><strong>${formatMoney(totalSales)}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Recent Orders</h3></div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${orders.slice(0, 5).map(order => `
+                  <tr>
+                    <td>${order.id}</td>
+                    <td>${order.customer}</td>
+                    <td>${formatMoney(order.amount)}</td>
+                    <td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Low Stock Alert</h3></div>
+            ${lowStockProducts.length ? lowStockProducts.slice(0, 5).map(item => `<div class="list-row"><span>${item.name}</span><strong>${item.stock}</strong></div>`).join('') : '<div class="empty-state">No low stock items.</div>'}
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Top Selling Products</h3></div>
+            <div class="list-slim">
+              ${topProducts.map((product, index) => `<div class="list-row"><span>${index + 1}. ${product.name}</span><strong>${product.reviews} reviews</strong></div>`).join('')}
+            </div>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Recent Customers</h3></div>
+            <div class="list-slim">
+              ${customers.slice(0, 5).map(customer => `<div class="list-row"><span>${customer.name}</span><strong>${customer.city}</strong></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('admin-content').innerHTML = adminHTML;
+      setTimeout(() => {
+        const canvas = document.getElementById('salesOverviewChart');
+        if (canvas) {
+          new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: { labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul'], datasets: [{ label: 'Sales', data: salesData, borderColor: '#f5c124', backgroundColor: 'rgba(245,193,36,0.12)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+          });
+        }
+      }, 50);
+    }
+
+    function renderAdminProducts() {
+      setAdminTitle('Products');
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const html = `
+        <div class="table-wrap">
+          <div class="table-panel-header">
+            <h3>Products Management</h3>
+            <div class="table-actions">
+              <input class="search-mini" id="productSearchAdmin" placeholder="Search products" />
+              <button class="btn btn-primary btn-small" onclick="openAddProductModal()">+ Add Product</button>
+            </div>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Discount</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${products.map(product => `
+                <tr>
+                  <td><img src="${product.image}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
+                  <td>${product.name}</td>
+                  <td>${product.sku}</td>
+                  <td>${product.category}</td>
+                  <td>${formatMoney(product.price)}</td>
+                  <td>${product.discount || 0}%</td>
+                  <td>${product.stock}</td>
+                  <td><span class="status-pill status-${String(product.status).toLowerCase()}">${product.status}</span></td>
+                  <td>
+                    <div class="cell-actions">
+                      <button class="icon-action view" title="View" onclick="openProductModal('${product.id}')"><i class="fa-solid fa-eye"></i></button>
+                      <button class="icon-action edit" title="Edit" onclick="openEditProductModal('${product.id}')"><i class="fa-solid fa-pen"></i></button>
+                      <button class="icon-action delete" title="Delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('admin-content').innerHTML = html;
+      document.getElementById('productSearchAdmin').addEventListener('input', () => {
+        const term = document.getElementById('productSearchAdmin').value.toLowerCase();
+        const filtered = db.get(DB_KEYS.products, defaultProducts).filter(p => [p.name, p.sku, p.category].join(' ').toLowerCase().includes(term));
+        const tableBody = document.querySelector('#admin-content tbody');
+        if (!tableBody) return;
+        tableBody.innerHTML = filtered.map(product => `
+          <tr>
+            <td><img src="${product.image}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
+            <td>${product.name}</td>
+            <td>${product.sku}</td>
+            <td>${product.category}</td>
+            <td>${formatMoney(product.price)}</td>
+            <td>${product.discount || 0}%</td>
+            <td>${product.stock}</td>
+            <td><span class="status-pill status-${String(product.status).toLowerCase()}">${product.status}</span></td>
+            <td><div class="cell-actions"><button class="icon-action view" onclick="openProductModal('${product.id}')"><i class="fa-solid fa-eye"></i></button><button class="icon-action edit" onclick="openEditProductModal('${product.id}')"><i class="fa-solid fa-pen"></i></button><button class="icon-action delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button></div></td>
+          </tr>
+        `).join('');
+      });
+    }
+
+    function openAddProductModal() {
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>Add Product</h2>
+        <form onsubmit="saveProductForm(event)">
+          <div class="form-grid" style="margin-top:16px;">
+            <div class="field-group"><label>Name</label><input id="formProductName" required /></div>
+            <div class="field-group"><label>SKU</label><input id="formProductSku" required /></div>
+            <div class="field-group"><label>Category</label><select id="formProductCategory">${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>
+            <div class="field-group"><label>Product Image</label><input id="formProductImageFile" type="file" accept="image/*" required /><small>Upload the product image here.</small></div>
+            <div class="field-group"><label>Price</label><input id="formProductPrice" type="number" min="1" required /></div>
+            <div class="field-group"><label>Old Price</label><input id="formProductOldPrice" type="number" min="1" /></div>
+            <div class="field-group"><label>Discount %</label><input id="formProductDiscount" type="number" min="0" value="0" /></div>
+            <div class="field-group"><label>Stock</label><input id="formProductStock" type="number" min="0" value="0" required /></div>
+          </div>
+          <div class="field-group" style="margin-top:16px;"><label>Description</label><textarea id="formProductDescription" required></textarea></div>
+          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">Save Product</button>
+            <button class="btn btn-dark" type="button" onclick="closeModal()">Cancel</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function openEditProductModal(productId) {
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const product = products.find(item => item.id === productId);
+      if (!product) return;
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>Edit Product</h2>
+        <form onsubmit="saveEditedProduct(event, '${productId}')">
+          <div class="form-grid" style="margin-top:16px;">
+            <div class="field-group"><label>Name</label><input id="editProductName" value="${product.name}" required /></div>
+            <div class="field-group"><label>SKU</label><input id="editProductSku" value="${product.sku}" required /></div>
+            <div class="field-group"><label>Category</label><select id="editProductCategory">${categories.map(cat => `<option value="${cat.name}" ${cat.name === product.category ? 'selected' : ''}>${cat.name}</option>`).join('')}</select></div>
+            <div class="field-group"><label>Replace Product Image</label><input id="editProductImageFile" type="file" accept="image/*" /><small>Leave empty to keep the current image.</small></div>
+            <div class="field-group"><label>Price</label><input id="editProductPrice" type="number" min="1" value="${product.price}" required /></div>
+            <div class="field-group"><label>Old Price</label><input id="editProductOldPrice" type="number" min="1" value="${product.oldPrice || product.price}" /></div>
+            <div class="field-group"><label>Discount %</label><input id="editProductDiscount" type="number" min="0" value="${product.discount || 0}" /></div>
+            <div class="field-group"><label>Stock</label><input id="editProductStock" type="number" min="0" value="${product.stock}" required /></div>
+          </div>
+          <div class="field-group" style="margin-top:16px;"><label>Description</label><textarea id="editProductDescription" required>${product.description}</textarea></div>
+          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">Update Product</button>
+            <button class="btn btn-dark" type="button" onclick="closeModal()">Cancel</button>
+          </div>
+        </form>
+      `);
+    }
+
+    async function saveProductForm(event) {
+      event.preventDefault();
+      const name = document.getElementById('formProductName').value.trim();
+      const sku = document.getElementById('formProductSku').value.trim();
+      if (!name || !sku) {
+        showToast('Product name and SKU are required.', 'warning');
+        return;
+      }
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      if (products.some(item => item.sku.toLowerCase() === sku.toLowerCase())) {
+        showToast('Duplicate SKU detected.', 'danger');
+        return;
+      }
+      const imageFile = document.getElementById('formProductImageFile').files[0];
+      const image = imageFile ? await readImageFile(imageFile) : '';
+      if (!image) {
+        showToast('Please upload a product image.', 'warning');
+        return;
+      }
+      const newProduct = {
+        id: uid('prod'),
+        name,
+        sku,
+        category: document.getElementById('formProductCategory').value,
+        image,
+        price: Number(document.getElementById('formProductPrice').value) || 0,
+        oldPrice: Number(document.getElementById('formProductOldPrice').value) || 0,
+        discount: Number(document.getElementById('formProductDiscount').value) || 0,
+        stock: Number(document.getElementById('formProductStock').value) || 0,
+        description: document.getElementById('formProductDescription').value.trim(),
+        rating: 5,
+        reviews: 0,
+        status: 'Visible',
+        feature: true,
+        newest: true
+      };
+      products.unshift(newProduct);
+      db.set(DB_KEYS.products, products);
+      closeModal();
+      renderAdminProducts();
+      renderStoreHome();
+      showToast('Product created successfully.', 'success');
+    }
+
+    async function saveEditedProduct(event, productId) {
+      event.preventDefault();
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const index = products.findIndex(item => item.id === productId);
+      if (index === -1) return;
+      products[index].name = document.getElementById('editProductName').value.trim();
+      products[index].sku = document.getElementById('editProductSku').value.trim();
+      products[index].category = document.getElementById('editProductCategory').value;
+      const imageFile = document.getElementById('editProductImageFile').files[0];
+      if (imageFile) products[index].image = await readImageFile(imageFile);
+      products[index].price = Number(document.getElementById('editProductPrice').value) || 0;
+      products[index].oldPrice = Number(document.getElementById('editProductOldPrice').value) || products[index].price;
+      products[index].discount = Number(document.getElementById('editProductDiscount').value) || 0;
+      products[index].stock = Number(document.getElementById('editProductStock').value) || 0;
+      products[index].description = document.getElementById('editProductDescription').value.trim();
+      products[index].status = products[index].stock > 0 ? 'Visible' : 'Hidden';
+      db.set(DB_KEYS.products, products);
+      closeModal();
+      renderAdminProducts();
+      renderStoreHome();
+      showToast('Product updated successfully.', 'success');
+    }
+
+    function deleteProduct(productId) {
+      if (!confirm('Delete this product?')) return;
+      const products = db.get(DB_KEYS.products, defaultProducts).filter(item => item.id !== productId);
+      db.set(DB_KEYS.products, products);
+      renderAdminProducts();
+      renderStoreHome();
+      showToast('Product deleted.', 'success');
+    }
+
+    function renderAdminCategories() {
+      setAdminTitle('Categories');
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header">
+            <h3>Categories Management</h3>
+            <button class="btn btn-primary btn-small" onclick="addCategory()">+ Add Category</button>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Image</th><th>Name</th><th>Products</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${categories.map(cat => `
+                <tr>
+                  <td><img src="${cat.image}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
+                  <td>${cat.name}</td>
+                  <td>${products.filter(p => p.category === cat.name).length}</td>
+                  <td><span class="status-pill status-visible">Visible</span></td>
+                  <td><div class="cell-actions"><button class="icon-action edit" onclick="editCategory('${cat.id}')"><i class="fa-solid fa-pen"></i></button><button class="icon-action delete" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-trash"></i></button></div></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function addCategory() {
+      const name = prompt('Enter category name');
+      if (!name || !name.trim()) return;
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      categories.push({ id: uid('cat'), name: name.trim(), image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80' });
+      db.set(DB_KEYS.categories, categories);
+      renderAdminCategories();
+      renderStoreHome();
+      showToast('Category added.', 'success');
+    }
+
+    function editCategory(categoryId) {
+      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const nextName = prompt('Edit category name', categories.find(cat => cat.id === categoryId)?.name || '');
+      if (!nextName || !nextName.trim()) return;
+      const category = categories.find(cat => cat.id === categoryId);
+      if (category) category.name = nextName.trim();
+      db.set(DB_KEYS.categories, categories);
+      renderAdminCategories();
+      renderStoreHome();
+      showToast('Category updated.', 'success');
+    }
+
+    function deleteCategory(categoryId) {
+      if (!confirm('Delete this category?')) return;
+      const categories = db.get(DB_KEYS.categories, defaultCategories).filter(cat => cat.id !== categoryId);
+      db.set(DB_KEYS.categories, categories);
+      renderAdminCategories();
+      renderStoreHome();
+      showToast('Category deleted.', 'success');
+    }
+
+    function renderAdminOrders() {
+      setAdminTitle('Orders');
+      const orders = db.get(DB_KEYS.orders, defaultOrders);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header">
+            <h3>Orders Management</h3>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Phone</th><th>Date</th><th>Items</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${orders.map(order => `
+                <tr>
+                  <td>${order.id}</td>
+                  <td>${order.customer}</td>
+                  <td>${order.phone || 'N/A'}</td>
+                  <td>${order.date}</td>
+                  <td>${order.items || 0}</td>
+                  <td>${formatMoney(order.amount)}</td>
+                  <td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td>
+                  <td><div class="cell-actions"><button class="icon-action view" onclick="viewAdminOrder('${order.id}')"><i class="fa-solid fa-eye"></i></button><button class="icon-action edit" onclick="changeOrderStatusDialog('${order.id}')"><i class="fa-solid fa-pen"></i></button></div></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function viewAdminOrder(orderId) {
+      const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
+      if (!order) return;
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>Order Details</h2>
+        <div class="form-grid" style="margin-top:16px;">
+          <div class="field-group"><label>Order ID</label><input value="${order.id}" readonly /></div>
+          <div class="field-group"><label>Customer</label><input value="${order.customer}" readonly /></div>
+          <div class="field-group"><label>Phone</label><input value="${order.phone || ''}" readonly /></div>
+          <div class="field-group"><label>Date</label><input value="${order.date}" readonly /></div>
+          <div class="field-group"><label>Payment</label><input value="${order.payment || ''}" readonly /></div>
+          <div class="field-group" style="grid-column:1/-1;"><label>Address</label><input value="${order.address || ''}" readonly /></div>
+          <div class="field-group"><label>Subtotal</label><input value="${formatMoney(order.subtotal || order.amount)}" readonly /></div>
+          <div class="field-group"><label>Delivery</label><input value="${formatMoney(order.delivery || 0)}" readonly /></div>
+          <div class="field-group"><label>Tax</label><input value="${formatMoney(order.tax || 0)}" readonly /></div>
+          <div class="field-group"><label>Grand Total</label><input value="${formatMoney(order.amount)}" readonly /></div>
+        </div>
+        <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="printOrderInvoice('${order.id}')">Print Invoice</button>
+          <button class="btn btn-dark" onclick="closeModal()">Close</button>
+        </div>
+      `);
+    }
+
+    function changeOrderStatusDialog(orderId) {
+      const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
+      if (!order) return;
+      const nextStatus = prompt('Update status', order.status || 'Pending');
+      if (!nextStatus) return;
+      const orders = db.get(DB_KEYS.orders, defaultOrders);
+      const index = orders.findIndex(item => item.id === orderId);
+      if (index > -1) {
+        orders[index].status = nextStatus.trim();
+        db.set(DB_KEYS.orders, orders);
+        renderAdminOrders();
+        showToast('Order status updated.', 'success');
+      }
+    }
+
+    function renderAdminCustomers() {
+      setAdminTitle('Customers');
+      const customers = db.get(DB_KEYS.customers, defaultCustomers);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header"><h3>Customers Management</h3></div>
+          <table class="admin-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Spent</th><th>Status</th></tr></thead>
+            <tbody>
+              ${customers.map(customer => `
+                <tr>
+                  <td>${customer.name}</td>
+                  <td>${customer.phone}</td>
+                  <td>${customer.email}</td>
+                  <td>${customer.ordersCount || 0}</td>
+                  <td>${formatMoney(customer.totalSpent || 0)}</td>
+                  <td><span class="status-pill status-${String(customer.status).toLowerCase() === 'active' ? 'visible' : 'cancelled'}">${customer.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAdminCoupons() {
+      setAdminTitle('Coupons');
+      const coupons = db.get(DB_KEYS.coupons, defaultCoupons);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header">
+            <h3>Coupons Management</h3>
+            <button class="btn btn-primary btn-small" onclick="createCoupon()">+ Add Coupon</button>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min Order</th><th>Expiry</th><th>Status</th></tr></thead>
+            <tbody>
+              ${coupons.map(coupon => `
+                <tr>
+                  <td>${coupon.code}</td>
+                  <td>${coupon.type}</td>
+                  <td>${coupon.type === 'percentage' ? `${coupon.value}%` : `${formatMoney(coupon.value)}`}</td>
+                  <td>${formatMoney(coupon.minOrder || 0)}</td>
+                  <td>${coupon.expiry}</td>
+                  <td><span class="status-pill status-${coupon.active ? 'visible' : 'hidden'}">${coupon.active ? 'Active' : 'Inactive'}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function createCoupon() {
+      const code = prompt('Coupon code');
+      if (!code || !code.trim()) return;
+      const type = prompt('Coupon type: percentage or fixed', 'percentage');
+      const value = Number(prompt('Coupon value', '10') || 0);
+      const minOrder = Number(prompt('Minimum order', '200') || 0);
+      const expiry = prompt('Expiry date (YYYY-MM-DD)', '2026-12-31');
+      const coupons = db.get(DB_KEYS.coupons, defaultCoupons);
+      coupons.push({ id: uid('coupon'), code: code.trim().toUpperCase(), type: type === 'fixed' ? 'fixed' : 'percentage', value, minOrder, expiry, active: true });
+      db.set(DB_KEYS.coupons, coupons);
+      renderAdminCoupons();
+      showToast('Coupon created.', 'success');
+    }
+
+    function renderAdminReports() {
+      setAdminTitle('Reports');
+      const orders = db.get(DB_KEYS.orders, defaultOrders);
+      const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const avgOrder = orders.length ? totalRevenue / orders.length : 0;
+      const closures = db.get(DB_KEYS.accountClosures, []);
+      const paymentTotals = getPaymentTotals(orders);
+      const html = `
+        <div class="widget">
+          <div class="widget-header"><h3>Close Accounts</h3></div>
+          <p style="color:var(--muted);margin-bottom:16px;">Xisaabta xir marka aad dhammayso maalinta, bisha ama sanadka. Warbixinta la xiray lama tirtiro; history ayay ku jiraysaa.</p>
+          <div class="panel" style="margin-bottom:18px;">
+            <h3>Payment Accounts</h3>
+            <div class="list-slim" style="margin-top:10px;">
+              ${Object.entries(paymentTotals).map(([method, values]) => `<div class="list-row"><span>${method} <small style="color:var(--muted);">(${values.orders} orders)</small></span><strong>${formatMoney(values.amount)}</strong></div>`).join('')}
+            </div>
+          </div>
+          <div class="panel" style="margin-bottom:18px;border:1px solid rgba(239,68,68,0.35);">
+            <h3>Start Fresh</h3>
+            <p style="color:var(--muted);margin:8px 0 14px;">Delete test accounting data only. Products, suppliers, settings and admin login will remain.</p>
+            <button class="btn btn-danger" onclick="resetTestAccountingData()">Delete Test Accounting Data</button>
+          </div>
+          <div class="dashboard-row">
+            ${['daily', 'monthly', 'yearly'].map(period => `
+              <div class="panel">
+                <h3>${period === 'daily' ? 'Daily Closing' : period === 'monthly' ? 'Monthly Closing' : 'Yearly Closing'}</h3>
+                <p style="color:var(--muted);margin:8px 0 14px;">${getAccountPeriodLabel(period)}</p>
+                <button class="btn btn-primary" onclick="closeAccountPeriod('${period}')">Close ${period}</button>
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-top:20px;">
+            <h3>Closing History</h3>
+            ${closures.length ? `<table class="admin-table" style="margin-top:10px;"><thead><tr><th>Period</th><th>Range</th><th>Orders</th><th>Cash</th><th>Other accounts</th><th>Total</th><th>Closed at</th></tr></thead><tbody>${closures.slice().reverse().map(item => `<tr><td>${item.period}</td><td>${item.range}</td><td>${item.orders}</td><td>${formatMoney(item.cash)}</td><td>${formatMoney(item.otherAccounts)}</td><td>${formatMoney(item.revenue)}</td><td>${item.closedAt}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No account closing has been recorded yet.</div>'}
+          </div>
+        </div>
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Sales Report</h3></div>
+            <canvas id="reportSalesChart" height="120"></canvas>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Summary</h3></div>
+            <div class="list-slim">
+              <div class="list-row"><span>Total Revenue</span><strong>${formatMoney(totalRevenue)}</strong></div>
+              <div class="list-row"><span>Total Orders</span><strong>${orders.length}</strong></div>
+              <div class="list-row"><span>Average Order</span><strong>${formatMoney(avgOrder)}</strong></div>
+              <div class="list-row"><span>Best Category</span><strong>Electronics</strong></div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('admin-content').innerHTML = html;
+      setTimeout(() => {
+        const ctx = document.getElementById('reportSalesChart');
+        if (ctx) new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets: [{ label: 'Revenue', data: [2000, 3400, 2800, 5200, 3600, 6100, 5400], backgroundColor: '#f5c124' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+      }, 50);
+    }
+
+    function getPaymentTotals(orders) {
+      return orders.reduce((totals, order) => {
+        const method = order.payment || 'Other';
+        if (!totals[method]) totals[method] = { orders: 0, amount: 0 };
+        totals[method].orders += 1;
+        totals[method].amount += Number(order.amount || 0);
+        return totals;
+      }, {});
+    }
+
+    function resetTestAccountingData() {
+      if (!confirm('Delete all test orders, customers, payments, deliveries, notifications and closing history?')) return;
+      [
+        DB_KEYS.orders,
+        DB_KEYS.customers,
+        DB_KEYS.payments,
+        DB_KEYS.deliveries,
+        DB_KEYS.notifications,
+        DB_KEYS.accountClosures,
+        DB_KEYS.cart,
+        DB_KEYS.wishlist
+      ].forEach(key => db.remove(key));
+      db.set(DB_KEYS.orders, []);
+      db.set(DB_KEYS.customers, []);
+      db.set(DB_KEYS.payments, []);
+      db.set(DB_KEYS.deliveries, []);
+      db.set(DB_KEYS.notifications, []);
+      db.set(DB_KEYS.accountClosures, []);
+      db.set(DB_KEYS.cart, []);
+      db.set(DB_KEYS.wishlist, []);
+      updateBadges();
+      renderAdminReports();
+      showToast('Test accounting data deleted. You can start fresh.', 'success');
+    }
+
+    function getAccountPeriod(period) {
+      const now = new Date();
+      const start = new Date(now);
+      const end = new Date(now);
+      if (period === 'daily') {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+      } else if (period === 'monthly') {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        end.setMonth(end.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+      } else {
+        start.setMonth(0, 1);
+        start.setHours(0, 0, 0, 0);
+        end.setMonth(11, 31);
+        end.setHours(23, 59, 59, 999);
+      }
+      return { start, end };
+    }
+
+    function getAccountPeriodLabel(period) {
+      const { start, end } = getAccountPeriod(period);
+      return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+    }
+
+    function closeAccountPeriod(period) {
+      const { start, end } = getAccountPeriod(period);
+      const key = `${period}:${start.toISOString().slice(0, 10)}`;
+      const closures = db.get(DB_KEYS.accountClosures, []);
+      if (closures.some(item => item.key === key)) {
+        showToast('This account period is already closed.', 'warning');
+        return;
+      }
+      const periodOrders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
+        const orderDate = new Date(order.date);
+        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
+      });
+      const revenue = periodOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const paymentTotals = getPaymentTotals(periodOrders);
+      const cash = paymentTotals['Cash on Delivery']?.amount || paymentTotals.Cash?.amount || 0;
+      closures.push({
+        id: uid('closure'),
+        key,
+        period: period.charAt(0).toUpperCase() + period.slice(1),
+        range: getAccountPeriodLabel(period),
+        orders: periodOrders.length,
+        revenue,
+        cash,
+        otherAccounts: revenue - cash,
+        paymentTotals,
+        closedAt: new Date().toLocaleString()
+      });
+      db.set(DB_KEYS.accountClosures, closures);
+      renderAdminReports();
+      showToast(`${period} account closed successfully.`, 'success');
+    }
+
+    function renderAdminSuppliers() {
+      setAdminTitle('Suppliers');
+      const suppliers = db.get(DB_KEYS.suppliers, defaultSuppliers);
+      const rows = suppliers.map(supplier => `
+        <tr>
+          <td><strong>${supplier.name}</strong><br><small>${supplier.category}</small></td>
+          <td>${supplier.contact}</td>
+          <td>${supplier.phone}<br>${supplier.email}</td>
+          <td><span class="status-pill status-${supplier.status.toLowerCase()}">${supplier.status}</span></td>
+          <td><button class="btn btn-small btn-danger" onclick="deleteSupplier('${supplier.id}')">Delete</button></td>
+        </tr>
+      `).join('');
+      document.getElementById('admin-content').innerHTML = `
+        <div class="widget">
+          <div class="widget-header"><h3>Add Supplier</h3></div>
+          <form onsubmit="addSupplier(event)" class="form-grid">
+            <div class="field-group"><label>Company name</label><input id="supplierName" required></div>
+            <div class="field-group"><label>Contact person</label><input id="supplierContact" required></div>
+            <div class="field-group"><label>Phone</label><input id="supplierPhone" required></div>
+            <div class="field-group"><label>Email</label><input id="supplierEmail" type="email"></div>
+            <div class="field-group"><label>Category</label><input id="supplierCategory" required></div>
+            <div class="field-group"><label>Status</label><select id="supplierStatus"><option>Active</option><option>Inactive</option></select></div>
+            <div><button class="btn btn-primary" type="submit">Save Supplier</button></div>
+          </form>
+        </div>
+        <div class="table-wrap" style="margin-top:20px;">
+          <div class="table-panel-header"><h3>Supplier List</h3><span>${suppliers.length} suppliers</span></div>
+          <table class="admin-table"><thead><tr><th>Company</th><th>Contact</th><th>Contact details</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No suppliers yet.</td></tr>'}</tbody></table>
+        </div>
+      `;
+    }
+
+    function addSupplier(event) {
+      event.preventDefault();
+      const suppliers = db.get(DB_KEYS.suppliers, defaultSuppliers);
+      suppliers.push({
+        id: uid('supplier'),
+        name: document.getElementById('supplierName').value.trim(),
+        contact: document.getElementById('supplierContact').value.trim(),
+        phone: document.getElementById('supplierPhone').value.trim(),
+        email: document.getElementById('supplierEmail').value.trim(),
+        category: document.getElementById('supplierCategory').value.trim(),
+        status: document.getElementById('supplierStatus').value
+      });
+      db.set(DB_KEYS.suppliers, suppliers);
+      renderAdminSuppliers();
+      showToast('Supplier saved.', 'success');
+    }
+
+    function deleteSupplier(id) {
+      db.set(DB_KEYS.suppliers, db.get(DB_KEYS.suppliers, defaultSuppliers).filter(supplier => supplier.id !== id));
+      renderAdminSuppliers();
+      showToast('Supplier deleted.', 'success');
+    }
+
+    function renderAdminPayments() {
+      setAdminTitle('Payments');
+      const payments = db.get(DB_KEYS.payments, defaultPayments);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header"><h3>Payment Management</h3></div>
+          <table class="admin-table">
+            <thead><tr><th>Payment ID</th><th>Order</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+            <tbody>
+              ${payments.map(payment => `
+                <tr>
+                  <td>${payment.id}</td>
+                  <td>${payment.orderId}</td>
+                  <td>${payment.customer}</td>
+                  <td>${formatMoney(payment.amount)}</td>
+                  <td>${payment.method}</td>
+                  <td><span class="status-pill status-${String(payment.status).toLowerCase()}">${payment.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAdminDeliveries() {
+      setAdminTitle('Delivery');
+      const deliveries = db.get(DB_KEYS.deliveries, defaultDeliveries);
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header"><h3>Delivery Management</h3></div>
+          <table class="admin-table">
+            <thead><tr><th>Order</th><th>Customer</th><th>Phone</th><th>Address</th><th>Driver</th><th>Status</th></tr></thead>
+            <tbody>
+              ${deliveries.map(delivery => `
+                <tr>
+                  <td>${delivery.orderId}</td>
+                  <td>${delivery.customer}</td>
+                  <td>${delivery.phone}</td>
+                  <td>${delivery.address}</td>
+                  <td>${delivery.driver}</td>
+                  <td><span class="status-pill status-${String(delivery.status).toLowerCase().replace(/\s+/g, '-')}">${delivery.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAdminStockAlerts() {
+      setAdminTitle('Stock Alert');
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const threshold = Number(getSettings().lowStockThreshold || 5);
+      const rows = products.map(product => {
+        const status = product.stock === 0 ? 'Out of Stock' : product.stock <= threshold ? 'Low Stock' : 'Normal';
+        return `
+          <tr>
+            <td>${product.name}</td>
+            <td>${product.category}</td>
+            <td>${product.stock}</td>
+            <td><span class="status-pill status-${status === 'Out of Stock' ? 'hidden' : status === 'Low Stock' ? 'low' : 'normal'}">${status}</span></td>
+            <td><button class="btn btn-small btn-primary" onclick="openEditProductModal('${product.id}')">Edit Stock</button></td>
+          </tr>
+        `;
+      }).join('');
+      document.getElementById('admin-content').innerHTML = `
+        <div class="table-wrap">
+          <div class="table-panel-header"><h3>Stock Alert</h3></div>
+          <table class="admin-table">
+            <thead><tr><th>Product</th><th>Category</th><th>Current Stock</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAdminImages() {
+      setAdminTitle('Website Images');
+      const settings = getSettings();
+      document.getElementById('admin-content').innerHTML = `
+        <div class="widget">
+          <div class="widget-header"><h3>Website Images</h3></div>
+          <p style="color:var(--muted);margin-bottom:18px;">Upload website images separately from products.</p>
+          <div class="form-grid">
+            <div class="field-group">
+              <label>Logo Image</label>
+              <input id="websiteLogoFile" type="file" accept="image/*" />
+              <img src="${settings.logoUrl || ''}" alt="Current logo" style="width:90px;height:90px;object-fit:cover;border-radius:10px;margin-top:10px;" />
+            </div>
+            <div class="field-group">
+              <label>Hero/Banner Image</label>
+              <input id="websiteHeroFile" type="file" accept="image/*" />
+              <img src="${settings.heroImage || ''}" alt="Current hero image" style="width:180px;height:90px;object-fit:cover;border-radius:10px;margin-top:10px;" />
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:18px;" onclick="saveWebsiteImages()">Save Website Images</button>
+        </div>
+      `;
+    }
+
+    async function saveWebsiteImages() {
+      const settings = getSettings();
+      const logoFile = document.getElementById('websiteLogoFile').files[0];
+      const heroFile = document.getElementById('websiteHeroFile').files[0];
+      if (!logoFile && !heroFile) {
+        showToast('Choose at least one website image.', 'warning');
+        return;
+      }
+      if (logoFile) settings.logoUrl = await readImageFile(logoFile);
+      if (heroFile) settings.heroImage = await readImageFile(heroFile);
+      db.set(DB_KEYS.settings, settings);
+      applyBranding();
+      renderAdminImages();
+      renderStoreHome();
+      showToast('Website images saved.', 'success');
+    }
+
+    function renderAdminSettings() {
+      setAdminTitle('Settings');
+      const settings = getSettings();
+      document.getElementById('admin-content').innerHTML = `
+        <div class="widget">
+          <div class="widget-header"><h3>Website Settings</h3></div>
+          <div class="form-grid">
+            <div class="field-group"><label>Store Name</label><input id="settingStoreName" value="${settings.storeName}" /></div>
+            <div class="field-group"><label>Phone</label><input id="settingPhone" value="${settings.phone}" /></div>
+            <div class="field-group"><label>Email</label><input id="settingEmail" value="${settings.email}" /></div>
+            <div class="field-group"><label>City</label><input id="settingCity" value="${settings.city}" /></div>
+            <div class="field-group"><label>Currency</label><input id="settingCurrency" value="${settings.currency}" /></div>
+            <div class="field-group"><label>Logo URL</label><input id="settingLogoUrl" type="url" value="${settings.logoUrl || ''}" placeholder="https://example.com/logo.png" /></div>
+            <div class="field-group"><label>Upload Logo Image</label><input id="settingLogoFile" type="file" accept="image/*" /></div>
+            <div class="field-group"><label>Hero Image URL</label><input id="settingHeroImage" type="url" value="${settings.heroImage || ''}" placeholder="https://example.com/hero.jpg" /></div>
+            <div class="field-group"><label>Upload Hero Image</label><input id="settingHeroFile" type="file" accept="image/*" /></div>
+            <div class="field-group"><label>Delivery Fee</label><input id="settingDeliveryFee" type="number" value="${settings.deliveryFee}" /></div>
+            <div class="field-group"><label>Tax Rate</label><input id="settingTaxRate" type="number" value="${settings.taxRate}" /></div>
+            <div class="field-group"><label>Low-Stock Threshold</label><input id="settingLowStock" type="number" value="${settings.lowStockThreshold}" /></div>
+            <div class="field-group" style="grid-column:1/-1;"><label>Store Description</label><textarea id="settingDescription">${settings.storeDescription}</textarea></div>
+          </div>
+          <div style="margin-top:18px;"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
+        </div>
+      `;
+    }
+
+    function readImageFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('Unable to read the selected image.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function saveSettings() {
+      const settings = getSettings();
+      settings.storeName = document.getElementById('settingStoreName').value.trim() || settings.storeName;
+      settings.phone = document.getElementById('settingPhone').value.trim() || settings.phone;
+      settings.email = document.getElementById('settingEmail').value.trim() || settings.email;
+      settings.city = document.getElementById('settingCity').value.trim() || settings.city;
+      settings.currency = document.getElementById('settingCurrency').value.trim() || settings.currency;
+      settings.logoUrl = document.getElementById('settingLogoUrl').value.trim() || '';
+      settings.heroImage = document.getElementById('settingHeroImage').value.trim() || settings.heroImage;
+      const logoFile = document.getElementById('settingLogoFile').files[0];
+      const heroFile = document.getElementById('settingHeroFile').files[0];
+      if (logoFile) settings.logoUrl = await readImageFile(logoFile);
+      if (heroFile) settings.heroImage = await readImageFile(heroFile);
+      settings.deliveryFee = Number(document.getElementById('settingDeliveryFee').value || settings.deliveryFee);
+      settings.taxRate = Number(document.getElementById('settingTaxRate').value || settings.taxRate);
+      settings.lowStockThreshold = Number(document.getElementById('settingLowStock').value || settings.lowStockThreshold);
+      settings.storeDescription = document.getElementById('settingDescription').value.trim() || settings.storeDescription;
+      db.set(DB_KEYS.settings, settings);
+      applyBranding();
+      renderAdminSettings();
+      renderStoreHome();
+      showToast('Settings saved.', 'success');
+    }
+
+    function setAdminTitle(title) {
+      document.getElementById('adminTitle').textContent = title;
+    }
+
+    function printOrderInvoice(orderId) {
+      const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
+      if (!order) return;
+      const content = `
+        <html><head><title>Invoice ${order.id}</title><style>body{font-family:Arial,sans-serif;padding:30px;}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee}</style></head><body>
+          <h2>DOJIYE STORE</h2>
+          <p>Jigjiga, Ethiopia</p>
+          <p>Phone: ${getSettings().phone}</p>
+          <p>Email: ${getSettings().email}</p>
+          <hr />
+          <p><strong>Order ID:</strong> ${order.id}</p>
+          <p><strong>Date:</strong> ${order.date}</p>
+          <p><strong>Customer:</strong> ${order.customer}</p>
+          <p><strong>Address:</strong> ${order.address}</p>
+          <table>
+            <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+            ${(order.products || []).map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${formatMoney(p.price)}</td></tr>`).join('')}
+          </table>
+          <p><strong>Subtotal:</strong> ${formatMoney(order.subtotal || order.amount)}</p>
+          <p><strong>Delivery:</strong> ${formatMoney(order.delivery || 0)}</p>
+          <p><strong>Tax:</strong> ${formatMoney(order.tax || 0)}</p>
+          <p><strong>Grand Total:</strong> ${formatMoney(order.amount)}</p>
+          <p><strong>Payment Method:</strong> ${order.payment}</p>
+        </body></html>
+      `;
+      const win = window.open('', '_blank');
+      win.document.write(content);
+      win.document.close();
+      win.print();
+    }
+
+    function openInvoice(orderId) {
+      printOrderInvoice(orderId);
+    }
+
+    function initMotionEffects() {
+      const targets = document.querySelectorAll('#store-content .product-card, #store-content .category-card, #store-content .feature-item, #store-content .page-box, #store-content .panel, #store-content .summary-box, #admin-content .stat-card, #admin-content .widget, #admin-content .table-wrap, #admin-content .panel');
+      targets.forEach((el, index) => {
+        el.classList.remove('reveal-item');
+        void el.offsetWidth;
+        el.classList.add('reveal-item');
+        el.style.animationDelay = `${index * 60}ms`;
+      });
+    }
+
+    function attachMotionObserver() {
+      const storeRoot = document.getElementById('store-content');
+      const adminRoot = document.getElementById('admin-content');
+      if (!storeRoot || !adminRoot) return;
+      const apply = () => initMotionEffects();
+      const observer = new MutationObserver(apply);
+      observer.observe(storeRoot, { childList: true, subtree: true });
+      observer.observe(adminRoot, { childList: true, subtree: true });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      seedData();
+      const hydrated = await hydrateFromSupabase();
+      if (hydrated) {
+        supabaseSyncReady = true;
+        await syncLocalDataToSupabase();
+      } else {
+        console.warn('Supabase data was not loaded; automatic sync is disabled to protect remote data.');
+      }
+      removeEmailFromOrders();
+      applyBranding();
+      setupPageAccess();
+      updateBadges();
+      document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+      attachMotionObserver();
+      const adminPage = new URLSearchParams(window.location.search).has('admin');
+      if (adminPage) renderAdminDashboard();
+      else {
+        renderStoreHome();
+        switchView('store');
+      }
+    });
+  </script>
+  <script>
+    (() => {
+      if (typeof switchView !== 'undefined' && typeof renderStoreHome !== 'undefined') {
+        return;
+      }
+      const previousScript = document.currentScript.previousElementSibling;
+      const source = previousScript && previousScript.tagName === 'SCRIPT' ? previousScript.textContent : '';
+      if (!source) return;
+      try {
+        const functionNames = [...source.matchAll(/function\s+([A-Za-z0-9_$]+)\s*\(/g)].map(match => match[1]);
+        const exported = new Function(`${source}; return { ${functionNames.join(', ')} };`)();
+        Object.assign(window, exported);
+      } catch (error) {
+        console.error('DOJIYE app bootstrap fallback failed:', error);
+      }
+    })();
+  </script>
+</body>
+</html>
