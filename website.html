@@ -1388,6 +1388,13 @@
       heroImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'
     };
 
+    const PAYMENT_INSTRUCTIONS = {
+      'CBE Bank Transfer': { label: 'CBE Bank Transfer', account: '1000764605024' },
+      'E-Birr': { label: 'E-Birr', account: '0933572122' },
+      'Zaad': { label: 'Zaad', account: '0636896908' },
+      'M-Pesa': { label: 'M-Pesa', account: '0715335721' }
+    };
+
     const defaultCategories = [
       { id: 'cat_drinks', name: 'Drinks', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=200&q=80' },
       { id: 'cat_snacks', name: 'Snacks', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=200&q=80' },
@@ -2053,10 +2060,12 @@
                     <select id="paymentMethod">
                       <option value="Cash on Delivery">Cash on Delivery</option>
                       <option value="E-Birr">E-Birr</option>
-                      <option value="CBE Birr">CBE Birr</option>
-                      <option value="Telebirr">Telebirr</option>
-                      <option value="Credit/Debit Card">Credit/Debit Card</option>
+                      <option value="CBE Bank Transfer">CBE Bank Transfer</option>
+                      <option value="Zaad">Zaad</option>
+                      <option value="M-Pesa">M-Pesa</option>
                     </select>
+                    <small style="color:var(--muted);">Lacag-bixinta waxaa gacanta ku xaqiijinaya maamulka. Kaarka Mastercard weli kuma xidhna payment gateway.</small>
+                    <div id="paymentInstructions" class="panel" style="margin-top:12px;" aria-live="polite"></div>
                   </div>
                 </div>
                 <div class="field-group" style="margin-top:16px;">
@@ -2088,9 +2097,19 @@
           </div>
         </div>
       `;
+      const paymentSelect = document.getElementById('paymentMethod');
+      const updatePaymentInstructions = () => {
+        const instruction = PAYMENT_INSTRUCTIONS[paymentSelect.value];
+        const container = document.getElementById('paymentInstructions');
+        container.innerHTML = instruction
+          ? `<strong>${instruction.label}</strong><p style="margin-top:8px;">Account / number: <strong>${instruction.account}</strong></p><small>Marka dalabku kuu soo baxo, ku qor order ID-ga faahfaahinta lacag-dirista. Sug xaqiijinta maamulka ka hor intaadan u qaadan in lacagtu noo soo gaadhay.</small>`
+          : '<strong>Cash on Delivery</strong><p style="margin-top:8px;">Lacagta waxaad bixinaysaa marka dalabka laguu keeno.</p>';
+      };
+      paymentSelect.addEventListener('change', updatePaymentInstructions);
+      updatePaymentInstructions();
     }
 
-    function handleCheckoutSubmit(event) {
+    async function handleCheckoutSubmit(event) {
       event.preventDefault();
       const name = document.getElementById('customerName').value.trim();
       const phone = document.getElementById('customerPhone').value.trim();
@@ -2117,7 +2136,12 @@
       const discounts = cart.reduce((sum, item) => sum + ((Number(item.discount) || 0) / 100) * Number(item.price) * Number(item.qty), 0);
       const total = Math.max(subtotal + delivery + tax - discounts, 0);
 
-      const orderId = `#${Math.floor(1000 + Math.random() * 9000)}`;
+      if (!supabase) {
+        showToast('Dalabka lama diri karin: xiriirka Supabase lama heli karo. Fadlan isku day mar kale.', 'danger');
+        return;
+      }
+
+      const orderId = `#${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       const order = {
         id: orderId,
         customer: name,
@@ -2138,8 +2162,22 @@
         products: cart.map(item => ({ id: item.id, name: item.name, qty: item.qty, price: item.price }))
       };
 
+      let savedOrder;
+      try {
+        const { data, error } = await supabase.rpc('place_dojiye_order', { order_data: order });
+        if (error) throw error;
+        if (!data || data.id !== orderId) {
+          throw new Error('Supabase kama soo celin xaqiijinta dalabka.');
+        }
+        savedOrder = data;
+      } catch (error) {
+        console.error('Order submission to Supabase failed:', error);
+        showToast(`Dalabka lama gudbin. Alaabta cart-ka way kuu sii jiraysaa. ${error.message}`, 'danger');
+        return;
+      }
+
       const orders = db.get(DB_KEYS.orders, []);
-      orders.unshift(order);
+      orders.unshift(savedOrder);
       db.set(DB_KEYS.orders, orders);
 
       const customers = db.get(DB_KEYS.customers, []);
@@ -2185,17 +2223,21 @@
 
       db.set(DB_KEYS.cart, []);
       updateBadges();
-      renderOrderConfirmation(orderId);
-      showToast(`Order ${orderId} placed successfully.`, 'success');
+      renderOrderConfirmation(orderId, savedOrder.payment);
+      showToast(`Dalabka ${orderId} waa la diiwaangeliyey. Lacag-bixintu weli waa sugaysaa xaqiijin.`, 'success');
       renderAdminDashboard();
     }
 
-    function renderOrderConfirmation(orderId) {
+    function renderOrderConfirmation(orderId, paymentMethod) {
       const root = document.getElementById('store-content');
+      const paymentInstruction = PAYMENT_INSTRUCTIONS[paymentMethod];
       root.innerHTML = `
         <div class="page-box" style="text-align:center;">
           <h2 style="color:var(--success);">Order Placed Successfully</h2>
           <p style="font-size:18px; margin:16px 0;">Your order ID is <strong>${orderId}</strong>.</p>
+          ${paymentInstruction
+            ? `<div class="panel" style="max-width:520px;margin:0 auto 24px;text-align:left;"><h3>${paymentInstruction.label} Payment</h3><p style="margin-top:10px;">Send the payment to: <strong>${paymentInstruction.account}</strong></p><p style="margin-top:8px;">Reference / description: <strong>${orderId}</strong></p><small>Payment is not automatic. Wait for the store to confirm receipt.</small></div>`
+            : '<p style="margin:16px 0;">Pay when your order is delivered.</p>'}
           <div class="timeline" style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin:24px 0;">
             ${['Pending','Confirmed','Processing','Shipped','Delivered'].map((step, idx) => `
               <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
