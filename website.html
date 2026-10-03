@@ -906,6 +906,13 @@
       align-items: center;
       gap: 16px;
     }
+    .supabase-sync-status {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .supabase-sync-status.error { color: var(--danger); }
+    .supabase-sync-status.success { color: #15803d; }
     .admin-alert {
       position: relative;
       color: var(--dark);
@@ -1208,6 +1215,7 @@
           <button onclick="renderAdminImages()"><i class="fa-solid fa-images"></i> Website Images</button>
           <button onclick="renderAdminSettings()"><i class="fa-solid fa-gear"></i> Website Settings</button>
           <button onclick="renderAccountPage()"><i class="fa-solid fa-user-circle"></i> Profile</button>
+          <button onclick="logoutAdmin()"><i class="fa-solid fa-right-from-bracket"></i> Admin Sign Out</button>
           <button onclick="switchView('store')"><i class="fa-solid fa-store"></i> Back to Store</button>
         </div>
       </aside>
@@ -1220,6 +1228,7 @@
               <i class="fa-regular fa-bell"></i>
               <span id="adminNotifBadge" class="badge">0</span>
             </div>
+            <span id="supabaseSyncStatus" class="supabase-sync-status" role="status" aria-live="polite">Supabase: checking</span>
             <div class="admin-user">
               <div class="avatar">A</div>
               <span>Admin User</span>
@@ -1272,6 +1281,7 @@
       accountClosures: 'account_closures'
     };
     const SUPABASE_DATA_TABLE = 'dojiye_store_data';
+    const ADMIN_EMAILS = new Set(['khadarqadafi@gmail.com', 'admin@dojiye.com']);
 
     const supabaseConfig = window.DOJIYE_SUPABASE_CONFIG || {
       url: 'https://wokfwbjlmeandlfvgtkk.supabase.co',
@@ -1282,6 +1292,19 @@
       ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
       : null;
     let supabaseSyncReady = false;
+    let isSupabaseAdmin = false;
+    const pendingSupabaseKeys = new Set();
+
+    function isAllowedAdmin(email) {
+      return typeof email === 'string' && ADMIN_EMAILS.has(email.trim().toLowerCase());
+    }
+
+    function setSupabaseSyncStatus(message, state = '') {
+      const status = document.getElementById('supabaseSyncStatus');
+      if (!status) return;
+      status.textContent = `Supabase: ${message}`;
+      status.className = `supabase-sync-status${state ? ` ${state}` : ''}`;
+    }
 
     async function hydrateFromSupabase() {
       if (!supabase) return false;
@@ -1295,7 +1318,10 @@
         }
         for (const row of data || []) {
           if (Object.values(DB_KEYS).includes(row.key)) {
-            localStorage.setItem(row.key, JSON.stringify(row.data));
+            const value = row.key === DB_KEYS.users && Array.isArray(row.data)
+              ? row.data.filter(user => user.role !== 'admin')
+              : row.data;
+            localStorage.setItem(row.key, JSON.stringify(value));
           }
         }
         return true;
@@ -1305,32 +1331,47 @@
       }
     }
 
-    async function syncLocalDataToSupabase() {
-      if (!supabase) return false;
+    async function syncLocalDataToSupabase(storageKeys) {
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady) return false;
       try {
-        const rows = Object.values(DB_KEYS).map(storageKey => ({
-          key: storageKey,
-          data: db.get(storageKey, [])
-        }));
+        setSupabaseSyncStatus('saving…');
+        const rows = [...new Set(storageKeys)]
+          .filter(storageKey => Object.values(DB_KEYS).includes(storageKey) && storageKey !== DB_KEYS.users)
+          .map(storageKey => ({
+            key: storageKey,
+            data: db.get(storageKey, [])
+          }));
+        if (rows.length === 0) return true;
         const { error } = await supabase
           .from(SUPABASE_DATA_TABLE)
           .upsert(rows, { onConflict: 'key' });
         if (error) {
           console.warn(`Supabase upsert failed for ${SUPABASE_DATA_TABLE}:`, error.message);
+          setSupabaseSyncStatus(`save failed (${error.message})`, 'error');
           return false;
         }
+        setSupabaseSyncStatus('changes saved', 'success');
         return true;
       } catch (error) {
         console.error('Supabase sync error:', error);
+        setSupabaseSyncStatus('connection error; changes are only in this browser', 'error');
         return false;
       }
     }
 
     let supabaseSyncTimer;
-    function scheduleSupabaseSync() {
-      if (!supabase || !supabaseSyncReady) return;
+    function scheduleSupabaseSync(storageKey) {
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady || storageKey === DB_KEYS.users) return;
+      pendingSupabaseKeys.add(storageKey);
       clearTimeout(supabaseSyncTimer);
-      supabaseSyncTimer = setTimeout(() => syncLocalDataToSupabase(), 500);
+      setSupabaseSyncStatus('changes waiting to save');
+      supabaseSyncTimer = setTimeout(async () => {
+        const keys = [...pendingSupabaseKeys];
+        pendingSupabaseKeys.clear();
+        if (!(await syncLocalDataToSupabase(keys))) {
+          keys.forEach(key => pendingSupabaseKeys.add(key));
+        }
+      }, 500);
     }
 
     const defaultSettings = {
@@ -1396,10 +1437,7 @@
       { id: 'notif_3', title: 'Customer', message: 'A new customer registered for a wholesale order.', time: '1 hour ago', read: true }
     ];
 
-    const defaultUsers = [
-      { id: 'user_1', name: 'Admin User', email: 'khadarqadafi@gmail.com', password: 'Dojiye@2026!', role: 'admin' },
-      { id: 'user_2', name: 'Admin User', email: 'admin@dojiye.com', password: 'Dojiye@2026!', role: 'admin' }
-    ];
+    const defaultUsers = [];
 
     const defaultPayments = [
       { id: 'pay_1', orderId: '#1052', customer: 'Abdullahi Hassan', amount: 1250, method: 'Cash on Delivery', status: 'Pending', date: 'May 31, 2026' },
@@ -1455,7 +1493,7 @@
       },
       set(key, value) {
         localStorage.setItem(key, JSON.stringify(value));
-        scheduleSupabaseSync();
+        scheduleSupabaseSync(key);
       },
       update(key, updater) {
         const current = this.get(key, []);
@@ -1490,12 +1528,7 @@
         if (name === 'suppliers' && !localStorage.getItem(key)) db.set(key, defaultSuppliers);
         if (name === 'accountClosures' && !localStorage.getItem(key)) db.set(key, []);
       }
-      const users = db.get(DB_KEYS.users, defaultUsers);
-      const previousAdmin = users.find(user => user.role === 'admin' && user.email.toLowerCase() === 'admin@dojiye.com');
-      if (previousAdmin && previousAdmin.password === 'admin123') previousAdmin.password = 'Dojiye@2026!';
-      if (!users.some(user => user.role === 'admin' && user.email.toLowerCase() === 'khadarqadafi@gmail.com')) {
-        users.push(defaultUsers[0]);
-      }
+      const users = db.get(DB_KEYS.users, defaultUsers).filter(user => user.role !== 'admin');
       db.set(DB_KEYS.users, users);
     }
 
@@ -1576,7 +1609,7 @@
       });
       if (adminPage) {
         document.getElementById('store-view').classList.add('hidden');
-        if (sessionStorage.getItem('dojiye_admin_authenticated') === '1') {
+        if (isSupabaseAdmin) {
           document.getElementById('admin-view').classList.add('active');
         } else {
           document.getElementById('admin-view').classList.add('hidden');
@@ -1585,20 +1618,60 @@
       }
     }
 
-    function authenticateAdmin(event) {
+    async function authenticateAdmin(event) {
       event.preventDefault();
       const email = document.getElementById('adminLoginEmail').value.trim().toLowerCase();
       const password = document.getElementById('adminLoginPassword').value;
-      const admin = db.get(DB_KEYS.users, defaultUsers).find(user => user.role === 'admin' && user.email.toLowerCase() === email && user.password === password);
-      if (!admin) {
-        document.getElementById('adminLoginError').textContent = 'Email ama password-ka waa khalad.';
+      const errorElement = document.getElementById('adminLoginError');
+      errorElement.textContent = '';
+      if (!supabase) {
+        errorElement.textContent = 'Supabase lama heli karo. Hubi xiriirka internet-ka.';
         return;
       }
-      sessionStorage.setItem('dojiye_admin_authenticated', '1');
-      document.getElementById('admin-login-gate').classList.add('hidden');
-      document.getElementById('admin-view').classList.remove('hidden');
-      document.getElementById('admin-view').classList.add('active');
-      renderAdminDashboard();
+      let signedIn = false;
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        signedIn = true;
+        if (!isAllowedAdmin(data.user?.email)) {
+          await supabase.auth.signOut();
+          throw new Error('Email-kan looma oggola maamulka.');
+        }
+        isSupabaseAdmin = true;
+        const hydrated = await hydrateFromSupabase();
+        if (!hydrated) throw new Error('Xogta Supabase lama soo akhrin karin.');
+        supabaseSyncReady = true;
+        setSupabaseSyncStatus('connected', 'success');
+        document.getElementById('admin-login-gate').classList.add('hidden');
+        document.getElementById('admin-view').classList.remove('hidden');
+        document.getElementById('admin-view').classList.add('active');
+        renderAdminDashboard();
+      } catch (error) {
+        if (signedIn) {
+          const { error: signOutError } = await supabase.auth.signOut();
+          if (signOutError) console.warn('Could not clear failed admin session:', signOutError.message);
+        }
+        isSupabaseAdmin = false;
+        supabaseSyncReady = false;
+        errorElement.textContent = `Gelitaanku wuu fashilmay: ${error.message}`;
+      }
+    }
+
+    async function logoutAdmin() {
+      if (supabase) {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          showToast(`Ka bixitaanku wuu fashilmay: ${error.message}`, 'danger');
+          return;
+        }
+      }
+      isSupabaseAdmin = false;
+      supabaseSyncReady = false;
+      document.getElementById('admin-view').classList.remove('active');
+      document.getElementById('admin-view').classList.add('hidden');
+      document.getElementById('admin-login-gate').classList.remove('hidden');
+      document.getElementById('adminLoginError').textContent = '';
+      setSupabaseSyncStatus('signed out');
     }
 
     function updateBadges() {
@@ -3395,12 +3468,19 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       seedData();
+      if (supabase) {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) console.warn('Supabase session check failed:', error.message);
+        isSupabaseAdmin = isAllowedAdmin(data.session?.user.email);
+        if (data.session && !isSupabaseAdmin) await supabase.auth.signOut();
+      }
       const hydrated = await hydrateFromSupabase();
       if (hydrated) {
         supabaseSyncReady = true;
-        await syncLocalDataToSupabase();
+        if (isSupabaseAdmin) setSupabaseSyncStatus('connected', 'success');
       } else {
         console.warn('Supabase data was not loaded; automatic sync is disabled to protect remote data.');
+        setSupabaseSyncStatus('could not load data', 'error');
       }
       removeEmailFromOrders();
       applyBranding();
