@@ -1683,8 +1683,35 @@
       document.getElementById('adminNotifBadge').textContent = notifications.filter(n => !n.read).length;
     }
 
+    function sortProductsByCatalogNumber(products) {
+      const entries = products.map((product, index) => {
+        const match = String(product.sku || '').match(/^imp-(\d+)$/i);
+        return { product, index, number: match ? Number(match[1]) : null };
+      });
+      const numbered = new Set(entries.filter(entry => entry.number !== null).map(entry => entry.number));
+      const missingNumbers = Array.from({ length: 307 }, (_, index) => index + 1)
+        .filter(number => !numbered.has(number));
+      const unmatched = entries.filter(entry => entry.number === null);
+      const inferredNumber = unmatched.length === 1 && missingNumbers.length === 1
+        ? missingNumbers[0]
+        : null;
+      const catalogNumber = entry => entry.number ?? (unmatched.length === 1 ? inferredNumber : null);
+
+      return entries
+        .sort((a, b) => {
+          const numberA = catalogNumber(a);
+          const numberB = catalogNumber(b);
+          if (numberA !== null && numberB !== null) return numberA - numberB || a.index - b.index;
+          if (numberA !== null) return -1;
+          if (numberB !== null) return 1;
+          return a.index - b.index;
+        })
+        .map(entry => entry.product);
+    }
+
     function getFilteredProducts() {
-      let products = db.get(DB_KEYS.products, defaultProducts).filter(item => item.status !== 'Hidden');
+      let products = sortProductsByCatalogNumber(db.get(DB_KEYS.products, defaultProducts))
+        .filter(item => item.status !== 'Hidden');
       const q = (state.filters.search || '').trim().toLowerCase();
       if (q) {
         products = products.filter(item => [item.name, item.category, item.sku, item.description].join(' ').toLowerCase().includes(q));
@@ -1705,7 +1732,7 @@
         case 'rating': products.sort((a, b) => b.rating - a.rating); break;
         case 'newest': products.sort((a, b) => (b.newest ? 1 : 0) - (a.newest ? 1 : 0) || (b.id.localeCompare(a.id))); break;
         case 'discount': products.sort((a, b) => Number(b.discount) - Number(a.discount)); break;
-        default: products.sort((a, b) => Number(b.feature) - Number(a.feature));
+        default: break;
       }
       return products;
     }
@@ -2628,7 +2655,7 @@
 
     function renderAdminProducts() {
       setAdminTitle('Products');
-      const products = db.get(DB_KEYS.products, defaultProducts);
+      const products = sortProductsByCatalogNumber(db.get(DB_KEYS.products, defaultProducts));
       const html = `
         <div class="table-wrap">
           <div class="table-panel-header">
