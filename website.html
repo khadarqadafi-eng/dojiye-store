@@ -1206,7 +1206,9 @@
           <button onclick="renderAdminCategories()"><i class="fa-solid fa-tags"></i> Categories</button>
           <button onclick="renderAdminOrders()"><i class="fa-solid fa-cart-shopping"></i> Orders</button>
           <button onclick="renderAdminCustomers()"><i class="fa-solid fa-users"></i> Customers</button>
+          <button onclick="renderAdminExchangeRates()"><i class="fa-solid fa-arrow-right-arrow-left"></i> USD / ETB Exchange Rate</button>
           <button onclick="renderAdminSuppliers()"><i class="fa-solid fa-truck-field"></i> Suppliers</button>
+          <button onclick="renderAdminIntegrations()"><i class="fa-solid fa-plug"></i> System Integrations</button>
           <button onclick="renderAdminCoupons()"><i class="fa-solid fa-ticket"></i> Coupons</button>
           <button onclick="renderAdminReports()"><i class="fa-solid fa-chart-line"></i> Reports &amp; Analytics</button>
           <button onclick="renderAdminPayments()"><i class="fa-solid fa-credit-card"></i> Payments</button>
@@ -1261,6 +1263,10 @@
       payments: 'dojiye_payments',
       deliveries: 'dojiye_deliveries',
       suppliers: 'dojiye_suppliers',
+      integrations: 'dojiye_integrations',
+      inventoryAvailability: 'dojiye_inventory_availability',
+      productFulfillment: 'dojiye_product_fulfillment',
+      orderFulfillment: 'dojiye_order_fulfillment',
       accountClosures: 'dojiye_account_closures'
     };
 
@@ -1278,6 +1284,10 @@
       payments: 'payments',
       deliveries: 'deliveries',
       suppliers: 'suppliers',
+      integrations: 'integrations',
+      inventoryAvailability: 'inventory_availability',
+      productFulfillment: 'product_fulfillment',
+      orderFulfillment: 'order_fulfillment',
       accountClosures: 'account_closures'
     };
     const SUPABASE_DATA_TABLE = 'dojiye_store_data';
@@ -1297,6 +1307,14 @@
 
     function isAllowedAdmin(email) {
       return typeof email === 'string' && ADMIN_EMAILS.has(email.trim().toLowerCase());
+    }
+
+    function clearAdminOnlyInventoryData() {
+      [
+        DB_KEYS.integrations,
+        DB_KEYS.productFulfillment,
+        DB_KEYS.orderFulfillment
+      ].forEach(storageKey => localStorage.removeItem(storageKey));
     }
 
     function setSupabaseSyncStatus(message, state = '') {
@@ -1533,6 +1551,10 @@
         if (name === 'payments' && !localStorage.getItem(key)) db.set(key, defaultPayments);
         if (name === 'deliveries' && !localStorage.getItem(key)) db.set(key, defaultDeliveries);
         if (name === 'suppliers' && !localStorage.getItem(key)) db.set(key, defaultSuppliers);
+        if (name === 'integrations' && !localStorage.getItem(key)) db.set(key, []);
+        if (name === 'inventoryAvailability' && !localStorage.getItem(key)) db.set(key, {});
+        if (name === 'productFulfillment' && !localStorage.getItem(key)) db.set(key, {});
+        if (name === 'orderFulfillment' && !localStorage.getItem(key)) db.set(key, []);
         if (name === 'accountClosures' && !localStorage.getItem(key)) db.set(key, []);
       }
       const users = db.get(DB_KEYS.users, defaultUsers).filter(user => user.role !== 'admin');
@@ -1551,6 +1573,56 @@
     function formatMoney(value) {
       const num = Number(value) || 0;
       return `${num.toLocaleString()} ${getSettings().currency || 'ETB'}`;
+    }
+
+    function calculateVatPrice(basePrice, vatRate) {
+      const base = Number(basePrice) || 0;
+      const vat = Number(vatRate) || 0;
+      return Math.round((base * (1 + vat / 100)) * 100) / 100;
+    }
+
+    function bindPriceModeFields(modeFieldId, baseFieldId, vatFieldId, finalFieldId) {
+      const modeField = document.getElementById(modeFieldId);
+      const baseField = document.getElementById(baseFieldId);
+      const vatField = document.getElementById(vatFieldId);
+      const finalField = document.getElementById(finalFieldId);
+      if (!modeField || !baseField || !vatField || !finalField) return;
+
+      const syncPrice = () => {
+        const mode = modeField.value;
+        const base = Number(baseField.value) || 0;
+        const vat = Number(vatField.value) || 0;
+        if (mode === 'auto') {
+          finalField.value = calculateVatPrice(base, vat);
+        }
+      };
+
+      [modeField, baseField, vatField].forEach(field => field.addEventListener('input', syncPrice));
+      [modeField, baseField, vatField].forEach(field => field.addEventListener('change', syncPrice));
+      syncPrice();
+    }
+
+    function formatUsd(value) {
+      return `$${(Number(value) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function getLocalDateKey(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getCurrentUsdToEtbRate() {
+      const settings = getSettings();
+      const history = Array.isArray(settings.exchangeRateHistory) ? settings.exchangeRateHistory : [];
+      const today = getLocalDateKey();
+      const todayEntry = history.find(entry => entry.date === today);
+      return Number(todayEntry?.todayRate || settings.usdToEtbRate || 0);
+    }
+
+    function convertUsdPriceToEtb(usdPrice, exchangeRate) {
+      return Math.round(Number(usdPrice) * Number(exchangeRate) * 100) / 100;
     }
 
     function getSettings() {
@@ -1660,6 +1732,7 @@
         }
         isSupabaseAdmin = false;
         supabaseSyncReady = false;
+        clearAdminOnlyInventoryData();
         errorElement.textContent = `Gelitaanku wuu fashilmay: ${error.message}`;
       }
     }
@@ -1674,6 +1747,7 @@
       }
       isSupabaseAdmin = false;
       supabaseSyncReady = false;
+      clearAdminOnlyInventoryData();
       document.getElementById('admin-view').classList.remove('active');
       document.getElementById('admin-view').classList.add('hidden');
       document.getElementById('admin-login-gate').classList.remove('hidden');
@@ -1888,6 +1962,7 @@
       const isFav = wishlist.includes(product.id);
       const stockState = product.stock <= getSettings().lowStockThreshold ? (product.stock === 0 ? 'danger' : 'warning') : 'normal';
       const stockText = product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? `Low stock (${product.stock})` : `In stock (${product.stock})`;
+      const externalStock = getExternalInventoryForProduct(product);
       return `
         <article class="product-card">
           ${Number(product.discount) > 0 ? `<span class="product-badge">-${product.discount}%</span>` : ''}
@@ -1905,10 +1980,17 @@
               ${product.oldPrice ? `<span class="price-old">${formatMoney(product.oldPrice)}</span>` : ''}
             </div>
             <div class="stock-line ${stockState}"><strong>${stockText}</strong></div>
+            ${externalStock.length ? `<div class="stock-line">${externalStock.map(source => `<div>${escapeIntegrationValue(source.location || source.name)}: <strong>${source.quantity > 0 ? `${source.quantity} available` : 'Out of stock'}</strong>${source.stale ? ' (sync needed)' : ''}</div>`).join('')}</div>` : ''}
             <button class="btn btn-primary" onclick="addToCart('${product.id}', 1)">Add to Cart</button>
           </div>
         </article>
       `;
+    }
+
+    function getExternalInventoryForProduct(product) {
+      const availability = db.get(DB_KEYS.inventoryAvailability, {});
+      const sources = availability[String(product.sku || '').trim().toUpperCase()];
+      return Array.isArray(sources) ? sources : [];
     }
 
     function renderCartPage() {
@@ -2223,12 +2305,50 @@
 
       db.set(DB_KEYS.cart, []);
       updateBadges();
-      renderOrderConfirmation(orderId, savedOrder.payment);
+      renderOrderConfirmation(orderId, savedOrder.payment, phone, savedOrder.paymentStatus);
       showToast(`Dalabka ${orderId} waa la diiwaangeliyey. Lacag-bixintu weli waa sugaysaa xaqiijin.`, 'success');
       renderAdminDashboard();
     }
 
-    function renderOrderConfirmation(orderId, paymentMethod) {
+    function paymentStatusMessage(paymentStatus, paymentMethod) {
+      if (paymentMethod === 'Cash on Delivery') {
+        return 'Waxaad lacagta bixinaysaa marka dalabka laguu keeno.';
+      }
+      if (['Paid', 'Received', 'Confirmed'].includes(paymentStatus)) {
+        return 'Lacagta waa la helay oo maamulka ayaa xaqiijiyey.';
+      }
+      return 'Lacagta waa la sugayaa xaqiijinta mulkiilaha. Marka aad lacagta dirto, fadlan sug ilaa maamulka hubiyo.';
+    }
+
+    async function refreshCustomerPaymentStatus(orderId, phone) {
+      const result = document.getElementById('customerPaymentStatus');
+      const refreshButton = document.getElementById('refreshPaymentStatusButton');
+      if (!result || !refreshButton) return;
+      refreshButton.disabled = true;
+      result.textContent = 'Xaaladda lacagta waa la hubinayaa…';
+      try {
+        const { data, error } = await supabase.rpc('get_dojiye_order_status', {
+          order_id: orderId,
+          customer_phone: phone
+        });
+        if (error) throw error;
+        if (!data) throw new Error('Dalabkan lama helin. Hubi order ID-ga iyo telefoonka.');
+        result.textContent = paymentStatusMessage(data.paymentStatus, data.payment);
+        refreshButton.disabled = ['Paid', 'Received', 'Confirmed'].includes(data.paymentStatus);
+        refreshButton.textContent = refreshButton.disabled ? 'Lacagta waa la xaqiijiyey' : 'Hubi xaqiijinta lacagta';
+        if (data.status) {
+          const orderStatus = document.getElementById('customerOrderStatus');
+          if (orderStatus) orderStatus.textContent = `Xaaladda dalabka: ${data.status}`;
+        }
+      } catch (error) {
+        console.error('Customer order status lookup failed:', error);
+        result.textContent = `Xaaladda lama hubin karin: ${error.message}`;
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    function renderOrderConfirmation(orderId, paymentMethod, phone, paymentStatus) {
       const root = document.getElementById('store-content');
       const paymentInstruction = PAYMENT_INSTRUCTIONS[paymentMethod];
       root.innerHTML = `
@@ -2236,8 +2356,9 @@
           <h2 style="color:var(--success);">Order Placed Successfully</h2>
           <p style="font-size:18px; margin:16px 0;">Your order ID is <strong>${orderId}</strong>.</p>
           ${paymentInstruction
-            ? `<div class="panel" style="max-width:520px;margin:0 auto 24px;text-align:left;"><h3>${paymentInstruction.label} Payment</h3><p style="margin-top:10px;">Send the payment to: <strong>${paymentInstruction.account}</strong></p><p style="margin-top:8px;">Reference / description: <strong>${orderId}</strong></p><small>Payment is not automatic. Wait for the store to confirm receipt.</small></div>`
+              ? `<div class="panel" style="max-width:520px;margin:0 auto 24px;text-align:left;"><h3>${paymentInstruction.label} Payment</h3><p style="margin-top:10px;">Send the payment to: <strong>${paymentInstruction.account}</strong></p><p style="margin-top:8px;">Reference / description: <strong>${orderId}</strong></p><p id="customerPaymentStatus" style="margin-top:12px;font-weight:700;">${paymentStatusMessage(paymentStatus, paymentMethod)}</p><button id="refreshPaymentStatusButton" class="btn btn-dark" style="margin-top:12px;">Hubi xaqiijinta lacagta</button></div>`
             : '<p style="margin:16px 0;">Pay when your order is delivered.</p>'}
+          <p id="customerOrderStatus">Xaaladda dalabka: Pending</p>
           <div class="timeline" style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin:24px 0;">
             ${['Pending','Confirmed','Processing','Shipped','Delivered'].map((step, idx) => `
               <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
@@ -2249,6 +2370,10 @@
           <button class="btn btn-primary" onclick="renderStoreHome()">Back to Store</button>
         </div>
       `;
+      const refreshButton = document.getElementById('refreshPaymentStatusButton');
+      if (refreshButton) {
+        refreshButton.addEventListener('click', () => refreshCustomerPaymentStatus(orderId, phone));
+      }
     }
 
     function renderWishlistPage() {
@@ -2778,18 +2903,33 @@
             <div class="field-group"><label>SKU</label><input id="formProductSku" required /></div>
             <div class="field-group"><label>Category</label><select id="formProductCategory">${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>
             <div class="field-group"><label>Product Image</label><input id="formProductImageFile" type="file" accept="image/*" required /><small>Upload the product image here.</small></div>
-            <div class="field-group"><label>Price</label><input id="formProductPrice" type="number" min="1" required /></div>
-            <div class="field-group"><label>Old Price</label><input id="formProductOldPrice" type="number" min="1" /></div>
+            <div class="field-group"><label>Base Price</label><input id="formProductBasePrice" type="number" min="0" step="0.01" value="200" /></div>
+            <div class="field-group"><label>VAT %</label><input id="formProductVatRate" type="number" min="0" step="0.01" value="15" /></div>
+            <div class="field-group"><label>Price Mode</label><select id="formProductPriceMode"><option value="auto">Auto from VAT</option><option value="manual">Manual</option></select></div>
+            <div class="field-group"><label>Final Selling Price</label><input id="formProductPrice" type="number" min="1" step="0.01" required value="230" /></div>
+            <div class="field-group"><label>Old Price</label><input id="formProductOldPrice" type="number" min="1" step="0.01" /></div>
+            <div class="field-group"><label>Fulfillment store / branch (admin only)</label><input id="formProductSourceStore" maxlength="100" placeholder="e.g. Halal Super Market" /><small>Private routing note. Customers will not see this.</small></div>
             <div class="field-group"><label>Discount %</label><input id="formProductDiscount" type="number" min="0" value="0" /></div>
             <div class="field-group"><label>Stock</label><input id="formProductStock" type="number" min="0" value="0" required /></div>
           </div>
           <div class="field-group" style="margin-top:16px;"><label>Description</label><textarea id="formProductDescription" required></textarea></div>
+          <div class="field-group" style="margin-top:16px;"><label>Purchase cost (USD)</label><input id="formProductCostUSD" type="number" min="0" step="0.01" value="0" /><small>Supplier cost in US dollars. The store sale price remains in ETB.</small></div>
           <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-primary" type="submit">Save Product</button>
             <button class="btn btn-dark" type="button" onclick="closeModal()">Cancel</button>
           </div>
         </form>
       `);
+      bindPriceModeFields('formProductPriceMode', 'formProductBasePrice', 'formProductVatRate', 'formProductPrice');
+      document.getElementById('formProductPriceMode').addEventListener('change', () => {
+        const mode = document.getElementById('formProductPriceMode').value;
+        if (mode === 'manual') {
+          document.getElementById('formProductPrice').readOnly = false;
+        } else {
+          document.getElementById('formProductPrice').readOnly = true;
+        }
+      });
+      document.getElementById('formProductPriceMode').dispatchEvent(new Event('change'));
     }
 
     function openEditProductModal(productId) {
@@ -2797,6 +2937,10 @@
       const product = products.find(item => item.id === productId);
       if (!product) return;
       const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const basePrice = Number(product.basePrice ?? product.price) || 0;
+      const vatRate = Number(product.vatRate ?? 15) || 0;
+      const priceMode = product.priceMode || 'auto';
+      const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
       openModal(`
         <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <h2>Edit Product</h2>
@@ -2806,18 +2950,29 @@
             <div class="field-group"><label>SKU</label><input id="editProductSku" value="${product.sku}" required /></div>
             <div class="field-group"><label>Category</label><select id="editProductCategory">${categories.map(cat => `<option value="${cat.name}" ${cat.name === product.category ? 'selected' : ''}>${cat.name}</option>`).join('')}</select></div>
             <div class="field-group"><label>Replace Product Image</label><input id="editProductImageFile" type="file" accept="image/*" /><small>Leave empty to keep the current image.</small></div>
-            <div class="field-group"><label>Price</label><input id="editProductPrice" type="number" min="1" value="${product.price}" required /></div>
-            <div class="field-group"><label>Old Price</label><input id="editProductOldPrice" type="number" min="1" value="${product.oldPrice || product.price}" /></div>
+            <div class="field-group"><label>Base Price</label><input id="editProductBasePrice" type="number" min="0" step="0.01" value="${basePrice}" /></div>
+            <div class="field-group"><label>VAT %</label><input id="editProductVatRate" type="number" min="0" step="0.01" value="${vatRate}" /></div>
+            <div class="field-group"><label>Price Mode</label><select id="editProductPriceMode"><option value="auto" ${priceMode === 'auto' ? 'selected' : ''}>Auto from VAT</option><option value="manual" ${priceMode === 'manual' ? 'selected' : ''}>Manual</option></select></div>
+            <div class="field-group"><label>Final Selling Price</label><input id="editProductPrice" type="number" min="1" step="0.01" value="${product.price}" required ${priceMode === 'auto' ? 'readonly' : ''} /></div>
+            <div class="field-group"><label>Old Price</label><input id="editProductOldPrice" type="number" min="1" step="0.01" value="${product.oldPrice || product.price}" /></div>
+            <div class="field-group"><label>Fulfillment store / branch (admin only)</label><input id="editProductSourceStore" maxlength="100" value="${escapeIntegrationValue(productFulfillment[productId]?.sourceStore || '')}" placeholder="e.g. Halal Super Market" /><small>Private routing note. Customers will not see this.</small></div>
             <div class="field-group"><label>Discount %</label><input id="editProductDiscount" type="number" min="0" value="${product.discount || 0}" /></div>
             <div class="field-group"><label>Stock</label><input id="editProductStock" type="number" min="0" value="${product.stock}" required /></div>
           </div>
           <div class="field-group" style="margin-top:16px;"><label>Description</label><textarea id="editProductDescription" required>${product.description}</textarea></div>
+          <div class="field-group" style="margin-top:16px;"><label>Purchase cost (USD)</label><input id="editProductCostUSD" type="number" min="0" step="0.01" value="${Number(product.costUSD) || 0}" /><small>Supplier cost in US dollars. The store sale price remains in ETB.</small></div>
           <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-primary" type="submit">Update Product</button>
             <button class="btn btn-dark" type="button" onclick="closeModal()">Cancel</button>
           </div>
         </form>
       `);
+      bindPriceModeFields('editProductPriceMode', 'editProductBasePrice', 'editProductVatRate', 'editProductPrice');
+      document.getElementById('editProductPriceMode').addEventListener('change', () => {
+        const mode = document.getElementById('editProductPriceMode').value;
+        document.getElementById('editProductPrice').readOnly = mode !== 'manual';
+      });
+      document.getElementById('editProductPriceMode').dispatchEvent(new Event('change'));
     }
 
     async function saveProductForm(event) {
@@ -2839,14 +2994,26 @@
         showToast('Please upload a product image.', 'warning');
         return;
       }
+      const price = Number(document.getElementById('formProductPrice').value) || 0;
+      const oldPrice = Number(document.getElementById('formProductOldPrice').value) || 0;
+      const basePrice = Number(document.getElementById('formProductBasePrice').value) || 0;
+      const vatRate = Number(document.getElementById('formProductVatRate').value) || 0;
+      const priceMode = document.getElementById('formProductPriceMode').value || 'auto';
+      const currentRate = getCurrentUsdToEtbRate();
       const newProduct = {
         id: uid('prod'),
         name,
         sku,
         category: document.getElementById('formProductCategory').value,
         image,
-        price: Number(document.getElementById('formProductPrice').value) || 0,
-        oldPrice: Number(document.getElementById('formProductOldPrice').value) || 0,
+        costUSD: Number(document.getElementById('formProductCostUSD').value) || 0,
+        basePrice,
+        vatRate,
+        priceMode,
+        price,
+        oldPrice,
+        priceUSD: currentRate > 0 ? price / currentRate : null,
+        oldPriceUSD: oldPrice > 0 && currentRate > 0 ? oldPrice / currentRate : null,
         discount: Number(document.getElementById('formProductDiscount').value) || 0,
         stock: Number(document.getElementById('formProductStock').value) || 0,
         description: document.getElementById('formProductDescription').value.trim(),
@@ -2858,6 +3025,10 @@
       };
       products.unshift(newProduct);
       db.set(DB_KEYS.products, products);
+      const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
+      const sourceStore = document.getElementById('formProductSourceStore').value.trim();
+      if (sourceStore) productFulfillment[newProduct.id] = { sourceStore };
+      db.set(DB_KEYS.productFulfillment, productFulfillment);
       closeModal();
       renderAdminProducts();
       renderStoreHome();
@@ -2874,13 +3045,27 @@
       products[index].category = document.getElementById('editProductCategory').value;
       const imageFile = document.getElementById('editProductImageFile').files[0];
       if (imageFile) products[index].image = await readImageFile(imageFile);
+      products[index].costUSD = Number(document.getElementById('editProductCostUSD').value) || 0;
+      products[index].basePrice = Number(document.getElementById('editProductBasePrice').value) || 0;
+      products[index].vatRate = Number(document.getElementById('editProductVatRate').value) || 0;
+      products[index].priceMode = document.getElementById('editProductPriceMode').value || 'auto';
       products[index].price = Number(document.getElementById('editProductPrice').value) || 0;
       products[index].oldPrice = Number(document.getElementById('editProductOldPrice').value) || products[index].price;
+      const currentRate = getCurrentUsdToEtbRate();
+      if (currentRate > 0) {
+        products[index].priceUSD = products[index].price / currentRate;
+        products[index].oldPriceUSD = products[index].oldPrice / currentRate;
+      }
       products[index].discount = Number(document.getElementById('editProductDiscount').value) || 0;
       products[index].stock = Number(document.getElementById('editProductStock').value) || 0;
       products[index].description = document.getElementById('editProductDescription').value.trim();
       products[index].status = products[index].stock > 0 ? 'Visible' : 'Hidden';
       db.set(DB_KEYS.products, products);
+      const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
+      const sourceStore = document.getElementById('editProductSourceStore').value.trim();
+      if (sourceStore) productFulfillment[productId] = { sourceStore };
+      else delete productFulfillment[productId];
+      db.set(DB_KEYS.productFulfillment, productFulfillment);
       closeModal();
       renderAdminProducts();
       renderStoreHome();
@@ -2891,6 +3076,9 @@
       if (!confirm('Delete this product?')) return;
       const products = db.get(DB_KEYS.products, defaultProducts).filter(item => item.id !== productId);
       db.set(DB_KEYS.products, products);
+      const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
+      delete productFulfillment[productId];
+      db.set(DB_KEYS.productFulfillment, productFulfillment);
       renderAdminProducts();
       renderStoreHome();
       showToast('Product deleted.', 'success');
@@ -2985,9 +3173,36 @@
       `;
     }
 
-    function viewAdminOrder(orderId) {
+    async function readPrivateOrderFulfillment(orderId) {
+      if (!supabase || !isSupabaseAdmin) throw new Error('Admin Supabase session is required.');
+      const { data, error } = await supabase
+        .from(SUPABASE_DATA_TABLE)
+        .select('data')
+        .eq('key', DB_KEYS.orderFulfillment)
+        .maybeSingle();
+      if (error) throw error;
+      const records = Array.isArray(data?.data) ? data.data : [];
+      localStorage.setItem(DB_KEYS.orderFulfillment, JSON.stringify(records));
+      return records.find(record => record.orderId === orderId) || null;
+    }
+
+    async function viewAdminOrder(orderId) {
       const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
       if (!order) return;
+      let fulfillment = null;
+      try {
+        fulfillment = await readPrivateOrderFulfillment(orderId);
+      } catch (error) {
+        console.error('Private order fulfillment could not be loaded:', error);
+        showToast('Branch instructions could not be loaded. Check the admin connection and private fulfillment setup.', 'danger');
+      }
+      const fulfillmentRows = (fulfillment?.products || []).map(item => `
+        <tr>
+          <td>${escapeIntegrationValue(item.name)}</td>
+          <td>${Number(item.qty) || 0}</td>
+          <td>${escapeIntegrationValue(item.sourceStore || 'Not assigned')}</td>
+        </tr>
+      `).join('');
       openModal(`
         <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <h2>Order Details</h2>
@@ -2997,17 +3212,57 @@
           <div class="field-group"><label>Phone</label><input value="${order.phone || ''}" readonly /></div>
           <div class="field-group"><label>Date</label><input value="${order.date}" readonly /></div>
           <div class="field-group"><label>Payment</label><input value="${order.payment || ''}" readonly /></div>
+          <div class="field-group"><label>Payment Status</label><input value="${order.paymentStatus || 'Pending manual confirmation'}" readonly /></div>
+          <div class="field-group"><label>Order Status</label><input value="${order.status || 'Pending'}" readonly /></div>
           <div class="field-group" style="grid-column:1/-1;"><label>Address</label><input value="${order.address || ''}" readonly /></div>
           <div class="field-group"><label>Subtotal</label><input value="${formatMoney(order.subtotal || order.amount)}" readonly /></div>
           <div class="field-group"><label>Delivery</label><input value="${formatMoney(order.delivery || 0)}" readonly /></div>
           <div class="field-group"><label>Tax</label><input value="${formatMoney(order.tax || 0)}" readonly /></div>
           <div class="field-group"><label>Grand Total</label><input value="${formatMoney(order.amount)}" readonly /></div>
         </div>
+        <div style="margin-top:18px;">
+          <h3>Private fulfillment instructions (admin only)</h3>
+          ${fulfillmentRows
+            ? `<div class="table-wrap" style="margin-top:10px;"><table class="admin-table"><thead><tr><th>Product</th><th>Qty</th><th>Source store / branch</th></tr></thead><tbody>${fulfillmentRows}</tbody></table></div>`
+            : '<p style="margin-top:8px;color:var(--muted);">No branch snapshot for this order. Older orders need not have fulfillment details.</p>'}
+        </div>
         <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+          ${['Paid', 'Received', 'Confirmed'].includes(order.paymentStatus) ? '<span class="status-pill status-visible">PAYMENT CONFIRMED</span>' : `<button class="btn btn-primary" onclick="markOrderPaymentReceived('${order.id}')">Xaqiiji: lacagtu way timid</button>`}
           <button class="btn btn-primary" onclick="printOrderInvoice('${order.id}')">Print Invoice</button>
           <button class="btn btn-dark" onclick="closeModal()">Close</button>
         </div>
       `);
+    }
+
+    async function markOrderPaymentReceived(orderId) {
+      const confirmed = confirm('Ma hubisay akoonkaaga in lacagta dalabkan timid? Kaliya xaqiiji haddii lacagtu dhab ahaan kuu soo gashay.');
+      if (!confirmed) return;
+      const orders = db.get(DB_KEYS.orders, defaultOrders);
+      const order = orders.find(item => item.id === orderId);
+      if (!order) {
+        showToast('Dalabka lama helin.', 'danger');
+        return;
+      }
+      const previousStatus = order.paymentStatus;
+      const previousConfirmedAt = order.paymentConfirmedAt;
+      order.paymentStatus = 'Paid';
+      order.paymentConfirmedAt = new Date().toISOString();
+      db.set(DB_KEYS.orders, orders);
+      pendingSupabaseKeys.delete(DB_KEYS.orders);
+      clearTimeout(supabaseSyncTimer);
+      const saved = await syncLocalDataToSupabase([DB_KEYS.orders]);
+      if (!saved) {
+        if (previousStatus === undefined) delete order.paymentStatus;
+        else order.paymentStatus = previousStatus;
+        if (previousConfirmedAt === undefined) delete order.paymentConfirmedAt;
+        else order.paymentConfirmedAt = previousConfirmedAt;
+        db.set(DB_KEYS.orders, orders);
+        showToast('Xaqiijinta lacagtu Supabase ma gaarin. Isku day mar kale.', 'danger');
+        return;
+      }
+      closeModal();
+      renderAdminOrders();
+      showToast('Lacagta waa la xaqiijiyey, macmiilkuna wuu arki karaa xaaladda cusub.', 'success');
     }
 
     function changeOrderStatusDialog(orderId) {
@@ -3161,10 +3416,163 @@
       }, {});
     }
 
+    function renderAdminExchangeRates() {
+      setAdminTitle('USD / ETB Exchange Rate');
+      const settings = getSettings();
+      const history = Array.isArray(settings.exchangeRateHistory) ? settings.exchangeRateHistory : [];
+      const today = getLocalDateKey();
+      const yesterday = getLocalDateKey(new Date(Date.now() - 86400000));
+      const todayEntry = history.find(entry => entry.date === today);
+      const yesterdayEntry = history.find(entry => entry.date === yesterday);
+      const todayRate = Number(todayEntry?.todayRate || settings.usdToEtbRate || 0);
+      const yesterdayRate = Number(
+        todayEntry?.previousDayRate
+        || yesterdayEntry?.todayRate
+        || 0
+      );
+      const rateChange = todayRate > 0 && yesterdayRate > 0
+        ? todayRate - yesterdayRate
+        : null;
+      const rateChangePercent = rateChange !== null && yesterdayRate > 0
+        ? (rateChange / yesterdayRate) * 100
+        : null;
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const productsWithUsdCost = products.filter(product => Number(product.costUSD) > 0);
+      const estimatedInventoryProfit = todayRate > 0
+        ? productsWithUsdCost.reduce((total, product) => {
+          const unitCostETB = Number(product.costUSD) * todayRate;
+          const unitSaleAfterDiscount = Number(product.price) * (1 - Math.max(0, Number(product.discount) || 0) / 100);
+          return total + (unitSaleAfterDiscount - unitCostETB) * Math.max(0, Number(product.stock) || 0);
+        }, 0)
+        : null;
+      const recentHistory = [...history]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 14);
+
+      document.getElementById('admin-content').innerHTML = `
+        <div class="widget">
+          <div class="widget-header"><h3>Daily USD → ETB Rate</h3></div>
+          <p style="color:var(--muted);margin-bottom:16px;">Subax kasta geli sarifkii shalay iyo kan maanta. Haddii sarifku is beddelo, qiimaha iibka ETB ee alaabtu si toos ah ayuu ula jaanqaadayaa sarifka cusub. Haddii sarifku isku mid yahay, qiimayaashu ma is beddelayaan.</p>
+          <form class="form-grid" onsubmit="saveDailyExchangeRate(event)">
+            <div class="field-group">
+              <label for="exchangeRateDate">Date</label>
+              <input id="exchangeRateDate" type="date" value="${today}" readonly />
+            </div>
+            <div class="field-group">
+              <label for="yesterdayUsdEtbRate">Yesterday's rate (1 USD = ? ETB)</label>
+              <input id="yesterdayUsdEtbRate" type="number" min="0.0001" step="0.0001" value="${yesterdayRate || ''}" required placeholder="Example: 150.00" />
+            </div>
+            <div class="field-group">
+              <label for="todayUsdEtbRate">Today's rate (1 USD = ? ETB)</label>
+              <input id="todayUsdEtbRate" type="number" min="0.0001" step="0.0001" value="${todayRate || ''}" required placeholder="Example: 152.00" />
+            </div>
+            <div style="align-self:end;">
+              <button class="btn btn-primary" type="submit">Save Today's Rate</button>
+            </div>
+          </form>
+          ${todayRate > 0 ? `
+            <div class="dashboard-row" style="margin-top:18px;">
+              <div class="panel"><small>Today's USD → ETB</small><h3 style="margin-top:8px;">1 USD = ${todayRate.toLocaleString()} ETB</h3></div>
+              <div class="panel"><small>Yesterday's USD → ETB</small><h3 style="margin-top:8px;">${yesterdayRate > 0 ? `1 USD = ${yesterdayRate.toLocaleString()} ETB` : 'Not entered'}</h3></div>
+              <div class="panel"><small>Daily change</small><h3 style="margin-top:8px;">${rateChange === null ? 'Enter yesterday’s rate' : `${rateChange >= 0 ? '+' : ''}${rateChange.toFixed(4)} ETB (${rateChangePercent.toFixed(2)}%)`}</h3></div>
+            </div>
+          ` : '<div class="empty-state" style="margin-top:16px;">Weli sarif USD → ETB lama gelin.</div>'}
+        </div>
+        <div class="widget">
+          <div class="widget-header"><h3>Estimated Gross Profit</h3></div>
+          ${todayRate > 0
+            ? `<p>Based on today's rate and the USD purchase costs entered on products. Sale prices stay in ETB.</p>
+              <div class="list-slim" style="margin-top:12px;">
+                <div class="list-row"><span>Products with USD cost entered</span><strong>${productsWithUsdCost.length}</strong></div>
+                <div class="list-row"><span>Estimated gross profit at current stock</span><strong>${formatMoney(estimatedInventoryProfit)}</strong></div>
+              </div>
+              <small style="display:block;margin-top:10px;color:var(--muted);">Estimate only; does not include shipping, customs, bank fees, damaged stock, or other operating costs. Existing legacy “cost” values are not assumed to be USD.</small>`
+            : '<p>Geli sarifka maanta, kadib ku qor USD purchase cost alaabta qaybta Products → Edit si qiyaasta faa’iidada loo xisaabiyo.</p>'}
+        </div>
+        <div class="table-wrap">
+          <div class="table-panel-header"><h3>Exchange Rate History</h3><span>${history.length} saved days</span></div>
+          <table class="admin-table">
+            <thead><tr><th>Date</th><th>Yesterday (ETB / USD)</th><th>Today (ETB / USD)</th><th>Change</th></tr></thead>
+            <tbody>
+              ${recentHistory.length ? recentHistory.map(entry => {
+                const difference = Number(entry.todayRate) - Number(entry.previousDayRate);
+                return `<tr><td>${entry.date}</td><td>${Number(entry.previousDayRate).toLocaleString()}</td><td>${Number(entry.todayRate).toLocaleString()}</td><td>${difference >= 0 ? '+' : ''}${difference.toFixed(4)}</td></tr>`;
+              }).join('') : '<tr><td colspan="4">No exchange rates saved yet.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function saveDailyExchangeRate(event) {
+      event.preventDefault();
+      const date = document.getElementById('exchangeRateDate').value;
+      const previousDayRate = Number(document.getElementById('yesterdayUsdEtbRate').value);
+      const todayRate = Number(document.getElementById('todayUsdEtbRate').value);
+      if (!date || !Number.isFinite(previousDayRate) || previousDayRate <= 0
+          || !Number.isFinite(todayRate) || todayRate <= 0) {
+        showToast('Geli laba sarif oo sax ah oo ka weyn eber.', 'warning');
+        return;
+      }
+
+      const settings = getSettings();
+      const history = Array.isArray(settings.exchangeRateHistory) ? settings.exchangeRateHistory : [];
+      const rateChanged = todayRate !== previousDayRate;
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      let updatedPrices = 0;
+      products.forEach(product => {
+        let basePriceUSD = Number(product.priceUSD);
+        let baseOldPriceUSD = Number(product.oldPriceUSD);
+        if (!Number.isFinite(basePriceUSD) || basePriceUSD <= 0) {
+          basePriceUSD = Number(product.price) / (rateChanged ? previousDayRate : todayRate);
+        }
+        if ((!Number.isFinite(baseOldPriceUSD) || baseOldPriceUSD <= 0)
+            && Number(product.oldPrice) > 0) {
+          baseOldPriceUSD = Number(product.oldPrice) / (rateChanged ? previousDayRate : todayRate);
+        }
+        if (!Number.isFinite(basePriceUSD) || basePriceUSD <= 0) return;
+
+        product.priceUSD = basePriceUSD;
+        if (Number.isFinite(baseOldPriceUSD) && baseOldPriceUSD > 0) {
+          product.oldPriceUSD = baseOldPriceUSD;
+        }
+        if (rateChanged) {
+          product.price = convertUsdPriceToEtb(basePriceUSD, todayRate);
+          if (Number.isFinite(baseOldPriceUSD) && baseOldPriceUSD > 0) {
+            product.oldPrice = convertUsdPriceToEtb(baseOldPriceUSD, todayRate);
+          }
+          updatedPrices += 1;
+        }
+      });
+      const entry = {
+        date,
+        previousDayRate,
+        todayRate,
+        updatedAt: new Date().toISOString()
+      };
+      const existingIndex = history.findIndex(item => item.date === date);
+      if (existingIndex >= 0) history[existingIndex] = entry;
+      else history.push(entry);
+      settings.exchangeRateHistory = history
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-365);
+      settings.usdToEtbRate = todayRate;
+      db.set(DB_KEYS.products, products);
+      db.set(DB_KEYS.settings, settings);
+      renderAdminExchangeRates();
+      showToast(
+        !rateChanged
+          ? `Sarifku isma beddelin; qiimaha alaabtuna sidii ayuu ahaanayaa.`
+          : `Sarifka waa la kaydiyey; qiimaha ETB ee ${updatedPrices} alaab waa la cusboonaysiiyey.`,
+        'success'
+      );
+    }
+
     function resetTestAccountingData() {
       if (!confirm('Delete all test orders, customers, payments, deliveries, notifications and closing history?')) return;
       [
         DB_KEYS.orders,
+        DB_KEYS.orderFulfillment,
         DB_KEYS.customers,
         DB_KEYS.payments,
         DB_KEYS.deliveries,
@@ -3174,6 +3582,7 @@
         DB_KEYS.wishlist
       ].forEach(key => db.remove(key));
       db.set(DB_KEYS.orders, []);
+      db.set(DB_KEYS.orderFulfillment, []);
       db.set(DB_KEYS.customers, []);
       db.set(DB_KEYS.payments, []);
       db.set(DB_KEYS.deliveries, []);
@@ -3242,6 +3651,213 @@
       db.set(DB_KEYS.accountClosures, closures);
       renderAdminReports();
       showToast(`${period} account closed successfully.`, 'success');
+    }
+
+    function escapeIntegrationValue(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[character]);
+    }
+
+    function renderAdminIntegrations() {
+      setAdminTitle('System Integrations');
+      const integrations = db.get(DB_KEYS.integrations, []);
+      const setupRows = integrations.map(integration => `
+        <tr>
+          <td><strong>${escapeIntegrationValue(integration.name)}</strong><br><small>${escapeIntegrationValue(integration.provider === 'odoo' ? 'Odoo' : integration.provider === 'pos' ? 'POS' : 'Other system')}</small></td>
+          <td>${escapeIntegrationValue(integration.location || 'Not specified')}</td>
+          <td>${escapeIntegrationValue(integration.baseUrl)}</td>
+          <td><span class="status-pill status-${integration.syncStatus === 'connected' ? 'visible' : integration.syncStatus === 'error' ? 'hidden' : 'low'}">${integration.syncStatus === 'connected' ? `Synced ${integration.lastSyncAt ? new Date(integration.lastSyncAt).toLocaleString() : ''}` : integration.syncStatus === 'error' ? 'Sync failed' : 'Setup required'}</span>${integration.syncError ? `<small style="display:block;color:var(--danger);">${escapeIntegrationValue(integration.syncError)}</small>` : ''}</td>
+          <td><div class="cell-actions"><button class="icon-action edit" title="Edit" onclick="editIntegration('${integration.id}')"><i class="fa-solid fa-pen"></i></button><button class="icon-action delete" title="Delete" onclick="deleteIntegration('${integration.id}')"><i class="fa-solid fa-trash"></i></button></div></td>
+        </tr>
+      `).join('');
+      const inventory = db.get(DB_KEYS.inventoryAvailability, {});
+      const syncedSkuCount = Object.keys(inventory).length;
+
+      document.getElementById('admin-content').innerHTML = `
+        <div class="widget">
+          <div class="widget-header"><h3>Connect inventory systems</h3><span>${integrations.length} / 5 slots used</span></div>
+          <p style="color:var(--muted);margin-bottom:16px;">Ku xidh Odoo ama POS REST API. Alaabta waxaa lagu waafajinayaa SKU, kadibna website-ku wuxuu muujinayaa kaydka la helay ee laan kasta. Isku-xidhka hadda waa read-only; dalab online ahi kaydka nidaamyada dibadda ma qabsanayo.</p>
+          <div class="panel" style="border-color:#f5c124;background:#fffbeb;margin-bottom:16px;">
+            <strong>${integrations.length ? 'API credentials are stored only as Supabase Edge Function secrets.' : 'First add a system, then configure its secret.'}</strong>
+            <p style="margin-top:6px;">Ha gelin password ama API key boggan. Supabase Dashboard → Edge Functions → Secrets, ku dar magaca secret-ka ee nidaam kasta; faahfaahinta magacyada iyo deploy steps waxay ku jiraan supabase/inventory-sync-setup.md.</p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="openIntegrationModal()" ${integrations.length >= 5 ? 'disabled' : ''}>+ Add system</button>
+            <button class="btn btn-dark" onclick="syncExternalInventory()" ${!integrations.length ? 'disabled' : ''}>Sync inventory now</button>
+          </div>
+          <p style="margin-top:12px;color:var(--muted);">Last successful snapshot covers ${syncedSkuCount} SKU(s). Sync is manually triggered for now.</p>
+        </div>
+        <div class="table-wrap" style="margin-top:20px;">
+          <div class="table-panel-header"><h3>Registered systems</h3><span>Odoo + POS / other systems</span></div>
+          <table class="admin-table">
+            <thead><tr><th>System</th><th>Branch / Warehouse</th><th>System URL</th><th>Connection</th><th>Actions</th></tr></thead>
+            <tbody>${setupRows || '<tr><td colspan="5">No systems registered. Add Odoo or a POS system to prepare its connection.</td></tr>'}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function openIntegrationModal(integrationId = '') {
+      const integrations = db.get(DB_KEYS.integrations, []);
+      const integration = integrations.find(item => item.id === integrationId);
+      if (!integration && integrations.length >= 5) {
+        showToast('Ugu badnaan 5 nidaam ayaa la diiwaangelin karaa.', 'warning');
+        return;
+      }
+      openModal(`
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2>${integration ? 'Edit system details' : 'Add inventory system'}</h2>
+        <p style="color:var(--muted);margin:8px 0 16px;">Geli URL iyo mapping-ka kaydka. Ha gelin password ama API secret.</p>
+        <form onsubmit="saveIntegration(event, '${integrationId}')">
+          <div class="form-grid">
+            <div class="field-group"><label>System type</label><select id="integrationProvider"><option value="odoo" ${integration?.provider === 'odoo' ? 'selected' : ''}>Odoo</option><option value="pos" ${integration?.provider === 'pos' ? 'selected' : ''}>POS REST API</option><option value="other" ${integration?.provider === 'other' ? 'selected' : ''}>Other REST API</option></select></div>
+            <div class="field-group"><label>Display name</label><input id="integrationName" required maxlength="80" value="${escapeIntegrationValue(integration?.name || '')}" placeholder="e.g. Odoo Jigjiga warehouse" /></div>
+            <div class="field-group"><label>System URL (HTTPS)</label><input id="integrationBaseUrl" type="url" required value="${escapeIntegrationValue(integration?.baseUrl || '')}" placeholder="https://your-system.example.com" /></div>
+            <div class="field-group"><label>Branch / warehouse</label><input id="integrationLocation" maxlength="100" value="${escapeIntegrationValue(integration?.location || '')}" placeholder="e.g. Main branch" /></div>
+            <div class="field-group"><label>Database / account name (optional)</label><input id="integrationAccount" maxlength="100" value="${escapeIntegrationValue(integration?.account || '')}" /></div>
+            <div class="field-group integration-rest-field"><label>Inventory API path</label><input id="integrationApiPath" maxlength="200" value="${escapeIntegrationValue(integration?.apiPath || '/api/inventory')}" placeholder="/api/inventory" /><small>Relative path on the same system URL.</small></div>
+            <div class="field-group integration-rest-field"><label>Items path in JSON</label><input id="integrationItemsPath" maxlength="120" value="${escapeIntegrationValue(integration?.itemsPath || 'items')}" placeholder="items or data.items" /></div>
+            <div class="field-group integration-rest-field"><label>SKU field</label><input id="integrationSkuField" maxlength="80" value="${escapeIntegrationValue(integration?.skuField || 'sku')}" /></div>
+            <div class="field-group integration-rest-field"><label>Available quantity field</label><input id="integrationQuantityField" maxlength="80" value="${escapeIntegrationValue(integration?.quantityField || 'quantity')}" /></div>
+            <div class="field-group integration-rest-field"><label>Warehouse field (optional)</label><input id="integrationWarehouseField" maxlength="80" value="${escapeIntegrationValue(integration?.warehouseField || 'warehouse')}" /></div>
+            <div class="field-group integration-rest-field"><label>API key header</label><select id="integrationAuthType"><option value="bearer" ${integration?.authType !== 'api_key' ? 'selected' : ''}>Authorization: Bearer</option><option value="api_key" ${integration?.authType === 'api_key' ? 'selected' : ''}>X-API-Key</option></select></div>
+          </div>
+          <p style="margin-top:12px;color:var(--muted);">Supabase secret for this slot: <strong>${integration ? `DOJIYE_SYSTEM_${integration.slot}_CREDENTIALS` : `DOJIYE_SYSTEM_${getNextIntegrationSlot(integrations)}_CREDENTIALS`}</strong></p>
+          <div id="integrationOdooHelp" class="panel" style="margin-top:12px;"><strong>Odoo JSON-RPC connector</strong><p style="margin-top:6px;">The account name is the Odoo database. Configure login and API key/password in the matching Supabase secret.</p></div>
+          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">Save system details</button>
+            <button class="btn btn-dark" type="button" onclick="closeModal()">Cancel</button>
+          </div>
+        </form>
+      `);
+      document.getElementById('integrationProvider').addEventListener('change', updateIntegrationConnectorFields);
+      updateIntegrationConnectorFields();
+    }
+
+    function getNextIntegrationSlot(integrations) {
+      const used = new Set(integrations.map(item => Number(item.slot)).filter(Number.isInteger));
+      return [1, 2, 3, 4, 5].find(slot => !used.has(slot)) || 5;
+    }
+
+    function updateIntegrationConnectorFields() {
+      const isOdoo = document.getElementById('integrationProvider').value === 'odoo';
+      document.querySelectorAll('.integration-rest-field').forEach(field => {
+        field.hidden = isOdoo;
+      });
+      document.getElementById('integrationOdooHelp').hidden = !isOdoo;
+    }
+
+    function editIntegration(integrationId) {
+      openIntegrationModal(integrationId);
+    }
+
+    function saveIntegration(event, integrationId) {
+      event.preventDefault();
+      const name = document.getElementById('integrationName').value.trim();
+      const baseUrl = document.getElementById('integrationBaseUrl').value.trim();
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(baseUrl);
+      } catch {
+        showToast('Geli URL sax ah oo ka bilaabma https://.', 'warning');
+        return;
+      }
+      if (parsedUrl.protocol !== 'https:') {
+        showToast('Nabadgelyada awgeed URL-ku waa inuu isticmaalaa HTTPS.', 'warning');
+        return;
+      }
+
+      const integrations = db.get(DB_KEYS.integrations, []);
+      const existing = integrations.find(item => item.id === integrationId);
+      if (!existing && integrations.length >= 5) {
+        showToast('Ugu badnaan 5 nidaam ayaa la diiwaangelin karaa.', 'warning');
+        return;
+      }
+      const next = {
+        id: existing?.id || uid('integration'),
+        slot: existing?.slot || getNextIntegrationSlot(integrations),
+        provider: document.getElementById('integrationProvider').value,
+        name,
+        baseUrl: `${parsedUrl.origin}${parsedUrl.pathname.replace(/\/+$/, '')}`,
+        location: document.getElementById('integrationLocation').value.trim(),
+        account: document.getElementById('integrationAccount').value.trim(),
+        apiPath: document.getElementById('integrationApiPath').value.trim(),
+        itemsPath: document.getElementById('integrationItemsPath').value.trim(),
+        skuField: document.getElementById('integrationSkuField').value.trim(),
+        quantityField: document.getElementById('integrationQuantityField').value.trim(),
+        warehouseField: document.getElementById('integrationWarehouseField').value.trim(),
+        authType: document.getElementById('integrationAuthType').value,
+        syncStatus: existing?.syncStatus || 'setup_required',
+        lastSyncAt: existing?.lastSyncAt || null,
+        syncError: '',
+        updatedAt: new Date().toISOString()
+      };
+      if (existing) integrations[integrations.indexOf(existing)] = next;
+      else integrations.push(next);
+      db.set(DB_KEYS.integrations, integrations);
+      closeModal();
+      renderAdminIntegrations();
+      showToast(`Details saved. Set DOJIYE_SYSTEM_${next.slot}_CREDENTIALS in Supabase Edge Function Secrets.`, 'success');
+    }
+
+    async function syncExternalInventory() {
+      if (!supabase || !isSupabaseAdmin) {
+        showToast('Admin-ku waa inuu Supabase ku galaa ka hor sync.', 'danger');
+        return;
+      }
+      const button = document.querySelector('#admin-content button[onclick="syncExternalInventory()"]');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Syncing…';
+      }
+      try {
+        const { data, error } = await supabase.functions.invoke('inventory-sync', { body: {} });
+        if (error) throw error;
+        if (!data || !data.availability || !Array.isArray(data.integrations)) {
+          throw new Error('Inventory sync returned an invalid response.');
+        }
+        db.set(DB_KEYS.integrations, data.integrations);
+        db.set(DB_KEYS.inventoryAvailability, data.availability);
+        const failed = data.integrations.filter(item => item.syncStatus === 'error');
+        renderAdminIntegrations();
+        renderStoreHome();
+        showToast(
+          failed.length
+            ? `Sync completed with ${failed.length} system error(s). Check each system status.`
+            : `Inventory sync completed for ${data.integrations.length} system(s).`,
+          failed.length ? 'warning' : 'success'
+        );
+      } catch (error) {
+        console.error('External inventory sync failed:', error);
+        showToast(`Sync failed: ${error.message}. Check Edge Function deployment and system secrets.`, 'danger');
+      } finally {
+        const currentButton = document.querySelector('#admin-content button[onclick="syncExternalInventory()"]');
+        if (currentButton) {
+          currentButton.disabled = false;
+          currentButton.textContent = 'Sync inventory now';
+        }
+      }
+    }
+
+    function deleteIntegration(integrationId) {
+      const currentIntegrations = db.get(DB_KEYS.integrations, []);
+      const integration = currentIntegrations.find(item => item.id === integrationId);
+      if (!confirm(`Remove this registered system? Also delete/rotate DOJIYE_SYSTEM_${integration?.slot}_CREDENTIALS in Supabase Secrets.`)) return;
+      const integrations = currentIntegrations.filter(item => item.id !== integrationId);
+      db.set(DB_KEYS.integrations, integrations);
+      const availability = db.get(DB_KEYS.inventoryAvailability, {});
+      Object.keys(availability).forEach(sku => {
+        availability[sku] = (availability[sku] || []).filter(source => source.integrationId !== integrationId);
+        if (!availability[sku].length) delete availability[sku];
+      });
+      db.set(DB_KEYS.inventoryAvailability, availability);
+      renderAdminIntegrations();
+      showToast('System registration removed.', 'success');
     }
 
     function renderAdminSuppliers() {
@@ -3551,6 +4167,7 @@
         console.warn('Supabase data was not loaded; automatic sync is disabled to protect remote data.');
         setSupabaseSyncStatus('could not load data', 'error');
       }
+      if (!isSupabaseAdmin || !hydrated) clearAdminOnlyInventoryData();
       removeEmailFromOrders();
       applyBranding();
       setupPageAccess();
