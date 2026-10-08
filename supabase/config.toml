@@ -1,0 +1,4 @@
+﻿project_id = "wokfwbjlmeandlfvgtkk"
+
+[functions.inventory-sync]
+verify_jwt = true

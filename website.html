@@ -47,12 +47,23 @@
     .hidden { display: none !important; }
     .app-view { display: none; }
     .app-view.active { display: block; }
+    .admin-only { display: none !important; }
     .admin-login-gate {
-      min-height: 100vh;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
       display: grid;
       place-items: center;
       padding: 24px;
       background: var(--dark);
+    }
+    html.admin-route:not(.admin-authenticated) .system-banner,
+    html.admin-route:not(.admin-authenticated) #store-view,
+    html.admin-route:not(.admin-authenticated) #admin-view {
+      display: none !important;
+    }
+    html.admin-route:not(.admin-authenticated) #admin-login-gate {
+      display: grid !important;
     }
     .admin-login-card {
       width: min(420px, 100%);
@@ -1124,6 +1135,11 @@
       .nav-bar { padding-left: 14px; padding-right: 14px; }
     }
   </style>
+  <script>
+    if (new URLSearchParams(window.location.search).has('admin')) {
+      document.documentElement.classList.add('admin-route');
+    }
+  </script>
 </head>
 <body>
   <div id="admin-login-gate" class="admin-login-gate hidden">
@@ -1136,6 +1152,7 @@
         <p id="adminLoginError" style="color:var(--danger);font-size:13px;margin-top:12px;"></p>
         <button class="btn btn-primary" style="width:100%;margin-top:16px;" type="submit">Gali Admin</button>
       </form>
+      <a href="website.html" style="display:block;text-align:center;margin-top:16px;color:var(--muted);font-size:13px;">Ku noqo dukaanka</a>
     </div>
   </div>
   <div class="system-banner">
@@ -1672,6 +1689,10 @@
     }
 
     function switchView(view) {
+      if (view === 'admin' && !isSupabaseAdmin) {
+        window.location.assign('admin.html');
+        return;
+      }
       document.getElementById('store-view').classList.toggle('active', view === 'store');
       document.getElementById('store-view').classList.toggle('hidden', view !== 'store');
       document.getElementById('admin-view').classList.toggle('active', view === 'admin');
@@ -1682,18 +1703,30 @@
 
     function setupPageAccess() {
       const adminPage = new URLSearchParams(window.location.search).has('admin');
+      document.documentElement.classList.toggle('admin-route', adminPage);
+      document.documentElement.classList.toggle('admin-authenticated', adminPage && isSupabaseAdmin);
       document.querySelectorAll('.admin-only').forEach(element => {
-        element.hidden = !adminPage;
-        element.style.display = adminPage ? '' : 'none';
+        element.hidden = true;
+        element.style.display = 'none';
       });
       if (adminPage) {
+        document.getElementById('store-view').classList.remove('active');
         document.getElementById('store-view').classList.add('hidden');
         if (isSupabaseAdmin) {
+          document.getElementById('admin-login-gate').classList.add('hidden');
+          document.getElementById('admin-view').classList.remove('hidden');
           document.getElementById('admin-view').classList.add('active');
         } else {
-          document.getElementById('admin-view').classList.add('hidden');
           document.getElementById('admin-login-gate').classList.remove('hidden');
+          document.getElementById('admin-view').classList.remove('active');
+          document.getElementById('admin-view').classList.add('hidden');
         }
+      } else {
+        document.getElementById('admin-login-gate').classList.add('hidden');
+        document.getElementById('admin-view').classList.remove('active');
+        document.getElementById('admin-view').classList.add('hidden');
+        document.getElementById('store-view').classList.remove('hidden');
+        document.getElementById('store-view').classList.add('active');
       }
     }
 
@@ -1721,6 +1754,7 @@
         if (!hydrated) throw new Error('Xogta Supabase lama soo akhrin karin.');
         supabaseSyncReady = true;
         setSupabaseSyncStatus('connected', 'success');
+        document.documentElement.classList.add('admin-authenticated');
         document.getElementById('admin-login-gate').classList.add('hidden');
         document.getElementById('admin-view').classList.remove('hidden');
         document.getElementById('admin-view').classList.add('active');
@@ -1732,7 +1766,10 @@
         }
         isSupabaseAdmin = false;
         supabaseSyncReady = false;
+        document.documentElement.classList.remove('admin-authenticated');
         clearAdminOnlyInventoryData();
+        document.getElementById('admin-view').classList.remove('active');
+        document.getElementById('admin-view').classList.add('hidden');
         errorElement.textContent = `Gelitaanku wuu fashilmay: ${error.message}`;
       }
     }
@@ -1747,6 +1784,7 @@
       }
       isSupabaseAdmin = false;
       supabaseSyncReady = false;
+      document.documentElement.classList.remove('admin-authenticated');
       clearAdminOnlyInventoryData();
       document.getElementById('admin-view').classList.remove('active');
       document.getElementById('admin-view').classList.add('hidden');
@@ -2698,6 +2736,7 @@
     }
 
     function renderAdminDashboard() {
+      if (!isSupabaseAdmin) return;
       setAdminTitle('Dashboard');
       const orders = db.get(DB_KEYS.orders, []);
       const products = db.get(DB_KEYS.products, defaultProducts);
@@ -4034,6 +4073,7 @@
     }
 
     function renderAdminSettings() {
+      if (!isSupabaseAdmin) return;
       setAdminTitle('Settings');
       const settings = getSettings();
       document.getElementById('admin-content').innerHTML = `
@@ -4056,7 +4096,61 @@
           </div>
           <div style="margin-top:18px;"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
         </div>
+        <div class="widget" style="margin-top:20px;">
+          <div class="widget-header"><h3>Beddel Password-ka Admin-ka</h3></div>
+          <p style="color:var(--muted);margin-bottom:16px;">Password-kan waa kan Supabase Auth. Geli kii hadda, kadibna dooro password cusub.</p>
+          <form onsubmit="changeAdminPassword(event)" class="form-grid">
+            <div class="field-group"><label>Password-ka hadda</label><input id="currentAdminPassword" type="password" autocomplete="current-password" required /></div>
+            <div class="field-group"><label>Password cusub</label><input id="newAdminPassword" type="password" autocomplete="new-password" minlength="8" required /></div>
+            <div class="field-group"><label>Xaqiiji password-ka cusub</label><input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="8" required /></div>
+            <div style="grid-column:1/-1;"><button class="btn btn-primary" type="submit">Beddel Password-ka</button></div>
+          </form>
+        </div>
       `;
+    }
+
+    async function changeAdminPassword(event) {
+      event.preventDefault();
+      if (!supabase || !isSupabaseAdmin) {
+        showToast('Marka hore geli Admin-ka.', 'danger');
+        return;
+      }
+
+      const currentPassword = document.getElementById('currentAdminPassword').value;
+      const newPassword = document.getElementById('newAdminPassword').value;
+      const confirmPassword = document.getElementById('confirmAdminPassword').value;
+      if (newPassword.length < 8) {
+        showToast('Password-ka cusub waa inuu ugu yaraan 8 xaraf ahaadaa.', 'warning');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showToast('Labada password ee cusub isma laha.', 'warning');
+        return;
+      }
+
+      try {
+        const { data, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const email = data.user?.email;
+        if (!isAllowedAdmin(email)) throw new Error('Akoonkan looma oggola maamulka.');
+
+        const { error: verificationError } = await supabase.auth.signInWithPassword({
+          email,
+          password: currentPassword
+        });
+        if (verificationError) throw new Error('Password-ka hadda aad gelisay sax ma aha.');
+
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateError) throw updateError;
+
+        document.getElementById('currentAdminPassword').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        document.getElementById('confirmAdminPassword').value = '';
+        showToast('Password-ka admin-ka waa la beddelay.', 'success');
+      } catch (error) {
+        console.error('Admin password update failed:', error);
+        showToast(`Password-ka lama beddelin: ${error.message}`, 'danger');
+      }
     }
 
     function readImageFile(file) {
@@ -4154,10 +4248,21 @@
     document.addEventListener('DOMContentLoaded', async () => {
       seedData();
       if (supabase) {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) console.warn('Supabase session check failed:', error.message);
-        isSupabaseAdmin = isAllowedAdmin(data.session?.user.email);
-        if (data.session && !isSupabaseAdmin) await supabase.auth.signOut();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn('Supabase session check failed:', sessionError.message);
+        } else if (sessionData.session) {
+          const { data, error } = await supabase.auth.getUser();
+          if (error) {
+            console.warn('Supabase user verification failed:', error.message);
+          } else {
+            isSupabaseAdmin = isAllowedAdmin(data.user?.email);
+          }
+          if (!isSupabaseAdmin) {
+            const { error: signOutError } = await supabase.auth.signOut();
+            if (signOutError) console.warn('Could not clear non-admin Supabase session:', signOutError.message);
+          }
+        }
       }
       const hydrated = await hydrateFromSupabase();
       if (hydrated) {
@@ -4175,10 +4280,12 @@
       document.getElementById('searchInput').addEventListener('input', handleSearchInput);
       attachMotionObserver();
       const adminPage = new URLSearchParams(window.location.search).has('admin');
-      if (adminPage) renderAdminDashboard();
+      if (adminPage && isSupabaseAdmin) renderAdminDashboard();
       else {
-        renderStoreHome();
-        switchView('store');
+        if (!adminPage) {
+          renderStoreHome();
+          switchView('store');
+        }
       }
     });
   </script>
