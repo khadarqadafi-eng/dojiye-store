@@ -4247,20 +4247,29 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       seedData();
+      const adminPage = new URLSearchParams(window.location.search).has('admin');
       if (supabase) {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
           console.warn('Supabase session check failed:', sessionError.message);
         } else if (sessionData.session) {
-          const { data, error } = await supabase.auth.getUser();
-          if (error) {
-            console.warn('Supabase user verification failed:', error.message);
+          if (adminPage) {
+            const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+            if (signOutError) {
+              console.error('Could not clear the saved admin session:', signOutError.message);
+              document.getElementById('adminLoginError').textContent = 'Fadlan dib u cusboonaysii bogga oo markale geli email-ka iyo password-ka.';
+            }
           } else {
-            isSupabaseAdmin = isAllowedAdmin(data.user?.email);
-          }
-          if (!isSupabaseAdmin) {
-            const { error: signOutError } = await supabase.auth.signOut();
-            if (signOutError) console.warn('Could not clear non-admin Supabase session:', signOutError.message);
+            const { data, error } = await supabase.auth.getUser();
+            if (error) {
+              console.warn('Supabase user verification failed:', error.message);
+            } else {
+              isSupabaseAdmin = isAllowedAdmin(data.user?.email);
+            }
+            if (!isSupabaseAdmin) {
+              const { error: signOutError } = await supabase.auth.signOut();
+              if (signOutError) console.warn('Could not clear non-admin Supabase session:', signOutError.message);
+            }
           }
         }
       }
@@ -4279,7 +4288,6 @@
       updateBadges();
       document.getElementById('searchInput').addEventListener('input', handleSearchInput);
       attachMotionObserver();
-      const adminPage = new URLSearchParams(window.location.search).has('admin');
       if (adminPage && isSupabaseAdmin) renderAdminDashboard();
       else {
         if (!adminPage) {
