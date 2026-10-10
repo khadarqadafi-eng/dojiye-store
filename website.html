@@ -1321,6 +1321,10 @@
     let supabaseSyncReady = false;
     let isSupabaseAdmin = false;
     const pendingSupabaseKeys = new Set();
+    let adminOrderMonitorTimer = null;
+    let adminOrderMonitorInFlight = false;
+    let knownAdminOrderIds = new Set();
+    let currentAdminPage = 'Dashboard';
 
     function isAllowedAdmin(email) {
       return typeof email === 'string' && ADMIN_EMAILS.has(email.trim().toLowerCase());
@@ -1408,6 +1412,88 @@
         }
       }, 500);
     }
+
+    async function checkForNewAdminOrders() {
+      if (!supabase || !isSupabaseAdmin || adminOrderMonitorInFlight || document.visibilityState === 'hidden' || pendingSupabaseKeys.has(DB_KEYS.orders)) return;
+      adminOrderMonitorInFlight = true;
+      try {
+        const { data, error } = await supabase
+          .from(SUPABASE_DATA_TABLE)
+          .select('data')
+          .eq('key', DB_KEYS.orders)
+          .maybeSingle();
+        if (error) throw error;
+
+        if (document.getElementById('supabaseSyncStatus')?.textContent === 'Supabase: order notification check failed') {
+          setSupabaseSyncStatus('connected', 'success');
+        }
+        const remoteOrders = Array.isArray(data?.data) ? data.data : [];
+        const newOrders = remoteOrders.filter(order => order?.id && !knownAdminOrderIds.has(order.id));
+        remoteOrders.forEach(order => {
+          if (order?.id) knownAdminOrderIds.add(order.id);
+        });
+        if (!newOrders.length) return;
+
+        localStorage.setItem(DB_KEYS.orders, JSON.stringify(remoteOrders));
+        const notifications = db.get(DB_KEYS.notifications, []);
+        const existingNotificationIds = new Set(notifications.map(item => item.id));
+        const unreadNotifications = [];
+        for (const order of newOrders) {
+          const notificationId = `new_order_${order.id}`;
+          if (existingNotificationIds.has(notificationId)) continue;
+          const notification = {
+            id: notificationId,
+            title: 'Dalab cusub',
+            message: 'Dalab cusub ayaa yimid. Ka eeg qaybta Orders.',
+            time: new Date().toLocaleString(),
+            read: false
+          };
+          notifications.unshift(notification);
+          unreadNotifications.push(notification);
+        }
+
+        if (unreadNotifications.length) {
+          localStorage.setItem(DB_KEYS.notifications, JSON.stringify(notifications));
+          scheduleSupabaseSync(DB_KEYS.notifications);
+          updateBadges();
+          const orderLabel = unreadNotifications.length === 1
+            ? unreadNotifications[0].message
+            : `${unreadNotifications.length} dalab cusub ayaa yimid.`;
+          showToast(orderLabel, 'success');
+        }
+
+        if (currentAdminPage === 'Orders') renderAdminOrders();
+        else if (currentAdminPage === 'Dashboard') renderAdminDashboard();
+      } catch (error) {
+        console.error('Could not check for new admin orders:', error);
+        setSupabaseSyncStatus('order notification check failed', 'error');
+      } finally {
+        adminOrderMonitorInFlight = false;
+      }
+    }
+
+    function startAdminOrderMonitor() {
+      stopAdminOrderMonitor();
+      knownAdminOrderIds = new Set(
+        db.get(DB_KEYS.orders, []).map(order => order?.id).filter(Boolean)
+      );
+      adminOrderMonitorTimer = setInterval(checkForNewAdminOrders, 15000);
+      checkForNewAdminOrders();
+    }
+
+    function stopAdminOrderMonitor() {
+      if (adminOrderMonitorTimer !== null) {
+        clearInterval(adminOrderMonitorTimer);
+        adminOrderMonitorTimer = null;
+      }
+      knownAdminOrderIds.clear();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && isSupabaseAdmin) {
+        checkForNewAdminOrders();
+      }
+    });
 
     const defaultSettings = {
       storeName: 'DOJIYE STORE',
@@ -1759,7 +1845,9 @@
         document.getElementById('admin-view').classList.remove('hidden');
         document.getElementById('admin-view').classList.add('active');
         renderAdminDashboard();
+        startAdminOrderMonitor();
       } catch (error) {
+        stopAdminOrderMonitor();
         if (signedIn) {
           const { error: signOutError } = await supabase.auth.signOut();
           if (signOutError) console.warn('Could not clear failed admin session:', signOutError.message);
@@ -1782,6 +1870,7 @@
           return;
         }
       }
+      stopAdminOrderMonitor();
       isSupabaseAdmin = false;
       supabaseSyncReady = false;
       document.documentElement.classList.remove('admin-authenticated');
@@ -4187,6 +4276,7 @@
     }
 
     function setAdminTitle(title) {
+      currentAdminPage = title;
       document.getElementById('adminTitle').textContent = title;
     }
 
