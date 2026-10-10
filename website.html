@@ -195,7 +195,8 @@
     .brand-mark img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      padding: 3px;
     }
     .brand-name {
       font-weight: 800;
@@ -4131,7 +4132,7 @@
             <div class="field-group">
               <label>Logo Image</label>
               <input id="websiteLogoFile" type="file" accept="image/*" />
-              <img src="${settings.logoUrl || ''}" alt="Current logo" style="width:90px;height:90px;object-fit:cover;border-radius:10px;margin-top:10px;" />
+              <img src="${settings.logoUrl || ''}" alt="Current logo" style="width:90px;height:90px;object-fit:contain;border-radius:10px;margin-top:10px;" />
             </div>
             <div class="field-group">
               <label>Hero/Banner Image</label>
@@ -4145,20 +4146,26 @@
     }
 
     async function saveWebsiteImages() {
-      const settings = getSettings();
+      const previousSettings = getSettings();
+      const settings = { ...previousSettings };
       const logoFile = document.getElementById('websiteLogoFile').files[0];
       const heroFile = document.getElementById('websiteHeroFile').files[0];
       if (!logoFile && !heroFile) {
         showToast('Choose at least one website image.', 'warning');
         return;
       }
-      if (logoFile) settings.logoUrl = await readImageFile(logoFile);
-      if (heroFile) settings.heroImage = await readImageFile(heroFile);
-      db.set(DB_KEYS.settings, settings);
-      applyBranding();
-      renderAdminImages();
-      renderStoreHome();
-      showToast('Website images saved.', 'success');
+      try {
+        if (logoFile) settings.logoUrl = await readImageFile(logoFile, 512);
+        if (heroFile) settings.heroImage = await readImageFile(heroFile, 1600);
+        await persistAdminSettings(settings, previousSettings);
+        applyBranding();
+        renderAdminImages();
+        renderStoreHome();
+        showToast('Website images saved and synced to Supabase.', 'success');
+      } catch (error) {
+        console.error('Website image save failed:', error);
+        showToast(`Sawirka lama kaydin: ${error.message}`, 'danger');
+      }
     }
 
     function renderAdminSettings() {
@@ -4242,37 +4249,101 @@
       }
     }
 
-    function readImageFile(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error('Unable to read the selected image.'));
-        reader.readAsDataURL(file);
-      });
+    async function readImageFile(file, maxDimension = 1600) {
+      if (!file || !file.type.startsWith('image/')) {
+        throw new Error('Dooro fayl sawir ah.');
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        image.src = objectUrl;
+        await image.decode();
+        const initialScale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const maxBytes = 200 * 1024;
+        let scale = initialScale;
+        let quality = 0.82;
+
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Sawirka lama diyaarin karin.');
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+          const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob(
+              result => result ? resolve(result) : reject(new Error('Sawirka WebP looma rogi karin.')),
+              'image/webp',
+              quality
+            );
+          });
+          if (blob.size <= maxBytes) {
+            return await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result));
+              reader.onerror = () => reject(new Error('Sawirka la yareeyey lama akhrin karin.'));
+              reader.readAsDataURL(blob);
+            });
+          }
+
+          scale *= 0.8;
+          quality = Math.max(0.45, quality - 0.06);
+        }
+
+        throw new Error('Sawirku aad buu u weyn yahay; dooro sawir ka yar.');
+      } catch (error) {
+        if (error instanceof Error) throw error;
+        throw new Error('Sawirka lama akhrin karin.');
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+
+    async function persistAdminSettings(settings, previousSettings) {
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady) {
+        throw new Error('Admin-ku waa inuu Supabase si sax ah ugu xiran yahay ka hor kaydinta.');
+      }
+
+      localStorage.setItem(DB_KEYS.settings, JSON.stringify(settings));
+      const saved = await syncLocalDataToSupabase([DB_KEYS.settings]);
+      if (!saved) {
+        localStorage.setItem(DB_KEYS.settings, JSON.stringify(previousSettings));
+        throw new Error('Supabase ma xaqiijin kaydinta. Hubi xaaladda Supabase ka dibna isku day mar kale.');
+      }
     }
 
     async function saveSettings() {
-      const settings = getSettings();
-      settings.storeName = document.getElementById('settingStoreName').value.trim() || settings.storeName;
-      settings.phone = document.getElementById('settingPhone').value.trim() || settings.phone;
-      settings.email = document.getElementById('settingEmail').value.trim() || settings.email;
-      settings.city = document.getElementById('settingCity').value.trim() || settings.city;
-      settings.currency = document.getElementById('settingCurrency').value.trim() || settings.currency;
-      settings.logoUrl = document.getElementById('settingLogoUrl').value.trim() || '';
-      settings.heroImage = document.getElementById('settingHeroImage').value.trim() || settings.heroImage;
-      const logoFile = document.getElementById('settingLogoFile').files[0];
-      const heroFile = document.getElementById('settingHeroFile').files[0];
-      if (logoFile) settings.logoUrl = await readImageFile(logoFile);
-      if (heroFile) settings.heroImage = await readImageFile(heroFile);
-      settings.deliveryFee = Number(document.getElementById('settingDeliveryFee').value || settings.deliveryFee);
-      settings.taxRate = Number(document.getElementById('settingTaxRate').value || settings.taxRate);
-      settings.lowStockThreshold = Number(document.getElementById('settingLowStock').value || settings.lowStockThreshold);
-      settings.storeDescription = document.getElementById('settingDescription').value.trim() || settings.storeDescription;
-      db.set(DB_KEYS.settings, settings);
-      applyBranding();
-      renderAdminSettings();
-      renderStoreHome();
-      showToast('Settings saved.', 'success');
+      const previousSettings = getSettings();
+      const settings = { ...previousSettings };
+      try {
+        settings.storeName = document.getElementById('settingStoreName').value.trim() || settings.storeName;
+        settings.phone = document.getElementById('settingPhone').value.trim() || settings.phone;
+        settings.email = document.getElementById('settingEmail').value.trim() || settings.email;
+        settings.city = document.getElementById('settingCity').value.trim() || settings.city;
+        settings.currency = document.getElementById('settingCurrency').value.trim() || settings.currency;
+        const logoUrl = document.getElementById('settingLogoUrl').value.trim();
+        if (logoUrl) settings.logoUrl = logoUrl;
+        settings.heroImage = document.getElementById('settingHeroImage').value.trim() || settings.heroImage;
+        const logoFile = document.getElementById('settingLogoFile').files[0];
+        const heroFile = document.getElementById('settingHeroFile').files[0];
+        if (logoFile) settings.logoUrl = await readImageFile(logoFile, 512);
+        if (heroFile) settings.heroImage = await readImageFile(heroFile, 1600);
+        settings.deliveryFee = Number(document.getElementById('settingDeliveryFee').value || settings.deliveryFee);
+        settings.taxRate = Number(document.getElementById('settingTaxRate').value || settings.taxRate);
+        settings.lowStockThreshold = Number(document.getElementById('settingLowStock').value || settings.lowStockThreshold);
+        settings.storeDescription = document.getElementById('settingDescription').value.trim() || settings.storeDescription;
+
+        await persistAdminSettings(settings, previousSettings);
+        applyBranding();
+        renderAdminSettings();
+        renderStoreHome();
+        showToast('Settings saved and synced to Supabase.', 'success');
+      } catch (error) {
+        console.error('Admin settings save failed:', error);
+        showToast(`Dejinta lama kaydin: ${error.message}`, 'danger');
+      }
     }
 
     function setAdminTitle(title) {
