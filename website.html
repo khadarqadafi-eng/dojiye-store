@@ -164,6 +164,9 @@
     }
 
     .store-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
       background: var(--dark);
       color: #fff;
       padding: 18px 4.5%;
@@ -172,6 +175,7 @@
       justify-content: space-between;
       gap: 18px;
       flex-wrap: wrap;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
     }
     .brand {
       display: flex;
@@ -279,9 +283,15 @@
     .icon-btn {
       position: relative;
       color: #fff;
-      font-size: 19px;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      font-size: 22px;
       cursor: pointer;
     }
+    .icon-btn[title="Account"] { font-size: 25px; }
     .badge {
       position: absolute;
       top: -8px;
@@ -405,10 +415,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 12px 18px;
       background: radial-gradient(circle at center, rgba(245,193,36,0.1), transparent 45%);
     }
     .hero-visual img {
-      width: min(84%, 400px);
+      width: min(100%, 560px);
+      max-height: 460px;
+      height: auto;
+      object-fit: contain;
       border-radius: 18px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.18);
       animation: floatY 6s ease-in-out infinite;
@@ -1309,6 +1323,7 @@
       accountClosures: 'account_closures'
     };
     const SUPABASE_DATA_TABLE = 'dojiye_store_data';
+    const PRODUCT_IMAGE_BUCKET = 'dojiye-product-images';
     const ADMIN_EMAILS = new Set(['khadarqadafi@gmail.com', 'admin@dojiye.com']);
 
     const supabaseConfig = window.DOJIYE_SUPABASE_CONFIG || {
@@ -2948,7 +2963,19 @@
     function renderAdminProducts() {
       setAdminTitle('Products');
       const products = sortProductsByCatalogNumber(db.get(DB_KEYS.products, defaultProducts));
+      const pageSize = 50;
+      let filteredProducts = products;
+      let currentPage = 0;
+      const legacyImageCount = products.filter(product =>
+        typeof product.image === 'string' && product.image.startsWith('data:image/')
+      ).length;
       const html = `
+        ${legacyImageCount ? `
+          <div class="panel" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span>${legacyImageCount} sawir oo hore wali xogta alaabta ayay ku jiraan. Supabase Storage ayaa loogu wareejin karaa si kaydku u yaraado.</span>
+            <button class="btn btn-primary btn-small" type="button" onclick="migrateLegacyProductImages()">U wareeji Supabase Storage</button>
+          </div>
+        ` : ''}
         <div class="table-wrap">
           <div class="table-panel-header">
             <h3>Products Management</h3>
@@ -2971,39 +2998,26 @@
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
-              ${products.map(product => `
-                <tr>
-                  <td><img src="${product.image}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
-                  <td>${product.name}</td>
-                  <td>${product.sku}</td>
-                  <td>${product.category}</td>
-                  <td>${formatMoney(product.price)}</td>
-                  <td>${product.discount || 0}%</td>
-                  <td>${product.stock}</td>
-                  <td><span class="status-pill status-${String(product.status).toLowerCase()}">${product.status}</span></td>
-                  <td>
-                    <div class="cell-actions">
-                      <button class="icon-action view" title="View" onclick="openProductModal('${product.id}')"><i class="fa-solid fa-eye"></i></button>
-                      <button class="icon-action edit" title="Edit" onclick="openEditProductModal('${product.id}')"><i class="fa-solid fa-pen"></i></button>
-                      <button class="icon-action delete" title="Delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
+            <tbody id="adminProductRows"></tbody>
           </table>
+          <div class="table-panel-header">
+            <small id="adminProductPageInfo"></small>
+            <div class="table-actions">
+              <button id="adminProductPrevious" class="btn btn-dark btn-small" type="button">Previous</button>
+              <button id="adminProductNext" class="btn btn-dark btn-small" type="button">Next</button>
+            </div>
+          </div>
         </div>
       `;
       document.getElementById('admin-content').innerHTML = html;
-      document.getElementById('productSearchAdmin').addEventListener('input', () => {
-        const term = document.getElementById('productSearchAdmin').value.toLowerCase();
-        const filtered = db.get(DB_KEYS.products, defaultProducts).filter(p => [p.name, p.sku, p.category].join(' ').toLowerCase().includes(term));
-        const tableBody = document.querySelector('#admin-content tbody');
-        if (!tableBody) return;
-        tableBody.innerHTML = filtered.map(product => `
+      const renderPage = () => {
+        const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+        currentPage = Math.min(currentPage, pageCount - 1);
+        const start = currentPage * pageSize;
+        const pageProducts = filteredProducts.slice(start, start + pageSize);
+        document.getElementById('adminProductRows').innerHTML = pageProducts.map(product => `
           <tr>
-            <td><img src="${product.image}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
+            <td><img src="${product.image}" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
             <td>${product.name}</td>
             <td>${product.sku}</td>
             <td>${product.category}</td>
@@ -3011,10 +3025,36 @@
             <td>${product.discount || 0}%</td>
             <td>${product.stock}</td>
             <td><span class="status-pill status-${String(product.status).toLowerCase()}">${product.status}</span></td>
-            <td><div class="cell-actions"><button class="icon-action view" onclick="openProductModal('${product.id}')"><i class="fa-solid fa-eye"></i></button><button class="icon-action edit" onclick="openEditProductModal('${product.id}')"><i class="fa-solid fa-pen"></i></button><button class="icon-action delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button></div></td>
+            <td>
+              <div class="cell-actions">
+                <button class="icon-action view" title="View" onclick="openProductModal('${product.id}')"><i class="fa-solid fa-eye"></i></button>
+                <button class="icon-action edit" title="Edit" onclick="openEditProductModal('${product.id}')"><i class="fa-solid fa-pen"></i></button>
+                <button class="icon-action delete" title="Delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </td>
           </tr>
         `).join('');
+        document.getElementById('adminProductPageInfo').textContent = filteredProducts.length
+          ? `Showing ${start + 1}-${Math.min(start + pageSize, filteredProducts.length)} of ${filteredProducts.length} products`
+          : 'No products found.';
+        document.getElementById('adminProductPrevious').disabled = currentPage === 0;
+        document.getElementById('adminProductNext').disabled = currentPage >= pageCount - 1;
+      };
+      document.getElementById('adminProductPrevious').addEventListener('click', () => {
+        currentPage -= 1;
+        renderPage();
       });
+      document.getElementById('adminProductNext').addEventListener('click', () => {
+        currentPage += 1;
+        renderPage();
+      });
+      document.getElementById('productSearchAdmin').addEventListener('input', () => {
+        const term = document.getElementById('productSearchAdmin').value.toLowerCase();
+        filteredProducts = products.filter(product => [product.name, product.sku, product.category].join(' ').toLowerCase().includes(term));
+        currentPage = 0;
+        renderPage();
+      });
+      renderPage();
     }
 
     function openAddProductModal() {
@@ -3027,7 +3067,7 @@
             <div class="field-group"><label>Name</label><input id="formProductName" required /></div>
             <div class="field-group"><label>SKU</label><input id="formProductSku" required /></div>
             <div class="field-group"><label>Category</label><select id="formProductCategory">${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}</select></div>
-            <div class="field-group"><label>Product Image</label><input id="formProductImageFile" type="file" accept="image/*" required /><small>Upload the product image here.</small></div>
+            <div class="field-group"><label>Product Image</label><input id="formProductImageFile" type="file" accept="image/*" required /><small>Sawirka si otomaatig ah ayaa loo yareynayaa ka hor inta alaabta la kaydin.</small></div>
             <div class="field-group"><label>Base Price</label><input id="formProductBasePrice" type="number" min="0" step="0.01" value="200" /></div>
             <div class="field-group"><label>VAT %</label><input id="formProductVatRate" type="number" min="0" step="0.01" value="15" /></div>
             <div class="field-group"><label>Price Mode</label><select id="formProductPriceMode"><option value="auto">Auto from VAT</option><option value="manual">Manual</option></select></div>
@@ -3102,74 +3142,231 @@
 
     async function saveProductForm(event) {
       event.preventDefault();
-      const name = document.getElementById('formProductName').value.trim();
-      const sku = document.getElementById('formProductSku').value.trim();
-      if (!name || !sku) {
-        showToast('Product name and SKU are required.', 'warning');
-        return;
+      let uploadedImageUrl = '';
+      let productSaved = false;
+      const submitButton = event.submitter;
+      const originalButtonText = submitButton?.textContent || '';
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Optimizing image...';
       }
-      const products = db.get(DB_KEYS.products, defaultProducts);
-      if (products.some(item => item.sku.toLowerCase() === sku.toLowerCase())) {
-        showToast('Duplicate SKU detected.', 'danger');
-        return;
+      try {
+        const name = document.getElementById('formProductName').value.trim();
+        const sku = document.getElementById('formProductSku').value.trim();
+        if (!name || !sku) {
+          showToast('Product name and SKU are required.', 'warning');
+          return;
+        }
+        const products = db.get(DB_KEYS.products, defaultProducts);
+        if (products.some(item => item.sku.toLowerCase() === sku.toLowerCase())) {
+          showToast('Duplicate SKU detected.', 'danger');
+          return;
+        }
+        const imageFile = document.getElementById('formProductImageFile').files[0];
+        if (!imageFile) {
+          showToast('Please upload a product image.', 'warning');
+          return;
+        }
+        const productId = uid('prod');
+        const uploadedImage = await uploadProductImage(imageFile, productId);
+        uploadedImageUrl = uploadedImage.url;
+        const price = Number(document.getElementById('formProductPrice').value) || 0;
+        const oldPrice = Number(document.getElementById('formProductOldPrice').value) || 0;
+        const basePrice = Number(document.getElementById('formProductBasePrice').value) || 0;
+        const vatRate = Number(document.getElementById('formProductVatRate').value) || 0;
+        const priceMode = document.getElementById('formProductPriceMode').value || 'auto';
+        const currentRate = getCurrentUsdToEtbRate();
+        const newProduct = {
+          id: productId,
+          name,
+          sku,
+          category: document.getElementById('formProductCategory').value,
+          image: uploadedImage.url,
+          costUSD: Number(document.getElementById('formProductCostUSD').value) || 0,
+          basePrice,
+          vatRate,
+          priceMode,
+          price,
+          oldPrice,
+          priceUSD: currentRate > 0 ? price / currentRate : null,
+          oldPriceUSD: oldPrice > 0 && currentRate > 0 ? oldPrice / currentRate : null,
+          discount: Number(document.getElementById('formProductDiscount').value) || 0,
+          stock: Number(document.getElementById('formProductStock').value) || 0,
+          description: document.getElementById('formProductDescription').value.trim(),
+          rating: 5,
+          reviews: 0,
+          status: 'Visible',
+          feature: true,
+          newest: true
+        };
+        products.unshift(newProduct);
+        await saveProductCatalog(products, db.get(DB_KEYS.products, defaultProducts));
+        productSaved = true;
+        const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
+        const sourceStore = document.getElementById('formProductSourceStore').value.trim();
+        if (sourceStore) productFulfillment[newProduct.id] = { sourceStore };
+        db.set(DB_KEYS.productFulfillment, productFulfillment);
+        closeModal();
+        renderAdminProducts();
+        renderStoreHome();
+        showToast('Product created successfully.', 'success');
+      } catch (error) {
+        console.error('Product creation failed:', error);
+        if (uploadedImageUrl && !productSaved) await removeStoredProductImage(uploadedImageUrl);
+        const isQuotaError = error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED';
+        showToast(
+          isQuotaError
+            ? 'Kaydka browser-ka wuu buuxsamay; ka saar sawirro waaweyn ama isticmaal kaydinta Supabase.'
+            : `Product-ka lama kaydin: ${error.message}`,
+          'danger'
+        );
+      } finally {
+        if (submitButton?.isConnected) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
       }
-      const imageFile = document.getElementById('formProductImageFile').files[0];
-      const image = imageFile ? await readImageFile(imageFile) : '';
-      if (!image) {
-        showToast('Please upload a product image.', 'warning');
-        return;
+    }
+
+    async function saveProductCatalog(products, previousProducts) {
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady) {
+        throw new Error('Marka hore gal Admin-ka oo hubi in Supabase ku xiran yahay.');
       }
-      const price = Number(document.getElementById('formProductPrice').value) || 0;
-      const oldPrice = Number(document.getElementById('formProductOldPrice').value) || 0;
-      const basePrice = Number(document.getElementById('formProductBasePrice').value) || 0;
-      const vatRate = Number(document.getElementById('formProductVatRate').value) || 0;
-      const priceMode = document.getElementById('formProductPriceMode').value || 'auto';
-      const currentRate = getCurrentUsdToEtbRate();
-      const newProduct = {
-        id: uid('prod'),
-        name,
-        sku,
-        category: document.getElementById('formProductCategory').value,
-        image,
-        costUSD: Number(document.getElementById('formProductCostUSD').value) || 0,
-        basePrice,
-        vatRate,
-        priceMode,
-        price,
-        oldPrice,
-        priceUSD: currentRate > 0 ? price / currentRate : null,
-        oldPriceUSD: oldPrice > 0 && currentRate > 0 ? oldPrice / currentRate : null,
-        discount: Number(document.getElementById('formProductDiscount').value) || 0,
-        stock: Number(document.getElementById('formProductStock').value) || 0,
-        description: document.getElementById('formProductDescription').value.trim(),
-        rating: 5,
-        reviews: 0,
-        status: 'Visible',
-        feature: true,
-        newest: true
-      };
-      products.unshift(newProduct);
-      db.set(DB_KEYS.products, products);
-      const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
-      const sourceStore = document.getElementById('formProductSourceStore').value.trim();
-      if (sourceStore) productFulfillment[newProduct.id] = { sourceStore };
-      db.set(DB_KEYS.productFulfillment, productFulfillment);
-      closeModal();
-      renderAdminProducts();
-      renderStoreHome();
-      showToast('Product created successfully.', 'success');
+
+      localStorage.setItem(DB_KEYS.products, JSON.stringify(products));
+      const saved = await syncLocalDataToSupabase([DB_KEYS.products]);
+      if (saved) return;
+
+      localStorage.setItem(DB_KEYS.products, JSON.stringify(previousProducts));
+      throw new Error('Alaabta laguma xaqiijin Supabase. Sawirka hore iyo alaabta waa la ilaaliyey; isku day mar kale.');
+    }
+
+    async function uploadProductImage(source, productId) {
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady) {
+        throw new Error('Marka hore gal Admin-ka oo hubi in Supabase ku xiran yahay.');
+      }
+
+      const optimizedDataUrl = typeof source === 'string'
+        ? await optimizeProductImageDataUrl(source)
+        : await readImageFile(source, 320, 8 * 1024);
+      const response = await fetch(optimizedDataUrl);
+      if (!response.ok) throw new Error('Sawirka la yareeyey lama diyaarin karin.');
+      const imageBlob = await response.blob();
+      const randomPart = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : uid('image');
+      const path = `${productId}/${randomPart}.webp`;
+      const { error: uploadError } = await supabase.storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .upload(path, imageBlob, {
+          cacheControl: '31536000',
+          contentType: 'image/webp',
+          upsert: false
+        });
+      if (uploadError) {
+        if (uploadError.message?.toLowerCase().includes('bucket not found')) {
+          throw new Error('Supabase Storage weli lama diyaarin. Marka hore raac supabase/product-images-storage-setup.md.');
+        }
+        throw new Error(`Sawirka Storage looma shubin: ${uploadError.message}`);
+      }
+
+      const { data } = supabase.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path);
+      if (!data?.publicUrl) {
+        await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([path]);
+        throw new Error('URL-ka sawirka Storage lama helin.');
+      }
+      return { path, url: data.publicUrl };
+    }
+
+    async function optimizeProductImageDataUrl(dataUrl) {
+      if (!/^data:image\//i.test(dataUrl)) {
+        throw new Error('Sawirka alaabtu ma aha sawir la aqbali karo.');
+      }
+      const response = await fetch(dataUrl);
+      if (!response.ok) throw new Error('Sawirkii hore lama akhrin karin.');
+      const blob = await response.blob();
+      return readImageFile(
+        new File([blob], 'product-image', { type: blob.type || 'image/png' }),
+        320,
+        8 * 1024
+      );
+    }
+
+    async function removeStoredProductImage(imageUrl) {
+      if (!supabase || !isSupabaseAdmin || typeof imageUrl !== 'string') return;
+      try {
+        const url = new URL(imageUrl);
+        const bucketMarker = `/storage/v1/object/public/${PRODUCT_IMAGE_BUCKET}/`;
+        const markerIndex = url.pathname.indexOf(bucketMarker);
+        if (markerIndex === -1) return;
+        const path = decodeURIComponent(url.pathname.slice(markerIndex + bucketMarker.length));
+        if (!path) return;
+        const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([path]);
+        if (error) throw error;
+      } catch (error) {
+        console.warn('Could not remove the replaced product image from Storage:', error);
+      }
+    }
+
+    async function migrateLegacyProductImages() {
+      if (!confirm('Sawirrada alaabta iyo alaabtoodu waa sii jirayaan. Kaliya sawirrada hore ayaa Storage loogu wareejinayaa si tartiib ah. Sii wad?')) return;
+      let migrated = 0;
+      try {
+        while (true) {
+          const previousProducts = db.get(DB_KEYS.products, defaultProducts);
+          const products = previousProducts.map(product => ({ ...product }));
+          const batch = products
+            .filter(product => typeof product.image === 'string' && product.image.startsWith('data:image/'))
+            .slice(0, 20);
+          if (!batch.length) break;
+
+          const uploadedUrls = [];
+          try {
+            for (const product of batch) {
+              const uploadedImage = await uploadProductImage(product.image, product.id);
+              product.image = uploadedImage.url;
+              uploadedUrls.push(uploadedImage.url);
+            }
+            await saveProductCatalog(products, previousProducts);
+            migrated += batch.length;
+            setSupabaseSyncStatus(`migrated ${migrated} product images`, 'success');
+          } catch (error) {
+            for (const imageUrl of uploadedUrls) await removeStoredProductImage(imageUrl);
+            throw error;
+          }
+        }
+        renderAdminProducts();
+        renderStoreHome();
+        showToast(migrated ? `${migrated} sawir ayaa alaabtoodii la socda loogu wareejiyey Supabase Storage.` : 'Sawirrada alaabtu hore ayay ugu jiraan Supabase Storage.', 'success');
+      } catch (error) {
+        console.error('Legacy product image migration failed:', error);
+        renderAdminProducts();
+        showToast(`Wareejinta sawirrada way istaagtay ka dib ${migrated} sawir; alaabtoodii iyo sawirradoodii waa la ilaaliyey. ${error.message}`, 'danger');
+      }
     }
 
     async function saveEditedProduct(event, productId) {
       event.preventDefault();
+      try {
       const products = db.get(DB_KEYS.products, defaultProducts);
+      const previousProducts = products.map(product => ({ ...product }));
       const index = products.findIndex(item => item.id === productId);
       if (index === -1) return;
       products[index].name = document.getElementById('editProductName').value.trim();
       products[index].sku = document.getElementById('editProductSku').value.trim();
       products[index].category = document.getElementById('editProductCategory').value;
+      const previousImageUrl = products[index].image;
       const imageFile = document.getElementById('editProductImageFile').files[0];
-      if (imageFile) products[index].image = await readImageFile(imageFile);
+      let uploadedImageUrl = '';
+      if (imageFile) {
+        const uploadedImage = await uploadProductImage(imageFile, productId);
+        uploadedImageUrl = uploadedImage.url;
+        products[index].image = uploadedImage.url;
+      } else if (typeof previousImageUrl === 'string' && previousImageUrl.startsWith('data:image/')) {
+        const uploadedImage = await uploadProductImage(previousImageUrl, productId);
+        uploadedImageUrl = uploadedImage.url;
+        products[index].image = uploadedImage.url;
+      }
       products[index].costUSD = Number(document.getElementById('editProductCostUSD').value) || 0;
       products[index].basePrice = Number(document.getElementById('editProductBasePrice').value) || 0;
       products[index].vatRate = Number(document.getElementById('editProductVatRate').value) || 0;
@@ -3185,7 +3382,23 @@
       products[index].stock = Number(document.getElementById('editProductStock').value) || 0;
       products[index].description = document.getElementById('editProductDescription').value.trim();
       products[index].status = products[index].stock > 0 ? 'Visible' : 'Hidden';
-      db.set(DB_KEYS.products, products);
+      try {
+        await saveProductCatalog(products, previousProducts);
+      } catch (error) {
+        if (uploadedImageUrl) await removeStoredProductImage(uploadedImageUrl);
+        console.error('Product update failed:', error);
+        const isQuotaError = error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED';
+        showToast(
+          isQuotaError
+            ? 'Kaydka browser-ka wuu buuxsamay; sawirrada alaabta lama kaydin.'
+            : `Product-ka lama cusboonaysiin: ${error.message}`,
+          'danger'
+        );
+        return;
+      }
+      if (uploadedImageUrl && previousImageUrl !== uploadedImageUrl) {
+        await removeStoredProductImage(previousImageUrl);
+      }
       const productFulfillment = db.get(DB_KEYS.productFulfillment, {});
       const sourceStore = document.getElementById('editProductSourceStore').value.trim();
       if (sourceStore) productFulfillment[productId] = { sourceStore };
@@ -3195,6 +3408,10 @@
       renderAdminProducts();
       renderStoreHome();
       showToast('Product updated successfully.', 'success');
+      } catch (error) {
+        console.error('Product update failed:', error);
+        showToast(`Product-ka lama cusboonaysiin: ${error.message}`, 'danger');
+      }
     }
 
     function deleteProduct(productId) {
@@ -4245,7 +4462,7 @@
       }
     }
 
-    async function readImageFile(file, maxDimension = 1600) {
+    async function readImageFile(file, maxDimension = 1600, maxBytes = 200 * 1024) {
       if (!file || !file.type.startsWith('image/')) {
         throw new Error('Dooro fayl sawir ah.');
       }
@@ -4256,11 +4473,10 @@
         image.src = objectUrl;
         await image.decode();
         const initialScale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
-        const maxBytes = 200 * 1024;
         let scale = initialScale;
         let quality = 0.82;
 
-        for (let attempt = 0; attempt < 8; attempt += 1) {
+        for (let attempt = 0; attempt < 12; attempt += 1) {
           const canvas = document.createElement('canvas');
           canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
           canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -4285,7 +4501,7 @@
           }
 
           scale *= 0.8;
-          quality = Math.max(0.45, quality - 0.06);
+          quality = Math.max(0.35, quality - 0.06);
         }
 
         throw new Error('Sawirku aad buu u weyn yahay; dooro sawir ka yar.');
