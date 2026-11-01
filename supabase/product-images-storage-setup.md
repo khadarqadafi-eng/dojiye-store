@@ -8,7 +8,7 @@ Product images are uploaded to the public `dojiye-product-images` Supabase Stora
 2. Open `product-images-storage.sql` from this folder, copy its contents into the SQL Editor, and run it once. It creates/configures only the product-image bucket and its Storage policies; it does not drop or replace policies on `dojiye_store_data`.
 3. In the website Admin, sign in with an allowed admin account and add or edit a product. The image is resized to at most 320 pixels and 8 KB, uploaded to Storage under a path containing the product ID, and then its public URL is saved with that product.
 
-The bucket allows public image reads for the storefront. Upload, update, and delete operations are restricted to the allowed authenticated admin emails. The bucket accepts WebP images up to 2 MB; the website optimizer targets a much smaller size.
+The bucket allows public image reads for the storefront through object URLs. It deliberately does not grant public `SELECT` on `storage.objects`, which would also let visitors list bucket contents. Upload, update, and delete operations are restricted to the allowed authenticated admin emails. The bucket accepts WebP images up to 2 MB; the website optimizer targets a much smaller size.
 
 ## Migrate existing product images
 

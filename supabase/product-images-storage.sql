@@ -17,21 +17,10 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists dojiye_product_images_public_read on storage.objects;
+
 do $product_image_policies$
 begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'storage'
-      and tablename = 'objects'
-      and policyname = 'dojiye_product_images_public_read'
-  ) then
-    create policy dojiye_product_images_public_read
-    on storage.objects
-    for select
-    to public
-    using (bucket_id = 'dojiye-product-images');
-  end if;
-
   if not exists (
     select 1 from pg_policies
     where schemaname = 'storage'
