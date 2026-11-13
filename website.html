@@ -2963,9 +2963,7 @@
     function renderAdminProducts() {
       setAdminTitle('Products');
       const products = sortProductsByCatalogNumber(db.get(DB_KEYS.products, defaultProducts));
-      const pageSize = 50;
       let filteredProducts = products;
-      let currentPage = 0;
       const legacyImageCount = products.filter(product =>
         typeof product.image === 'string' && product.image.startsWith('data:image/')
       ).length;
@@ -3002,20 +3000,12 @@
           </table>
           <div class="table-panel-header">
             <small id="adminProductPageInfo"></small>
-            <div class="table-actions">
-              <button id="adminProductPrevious" class="btn btn-dark btn-small" type="button">Previous</button>
-              <button id="adminProductNext" class="btn btn-dark btn-small" type="button">Next</button>
-            </div>
           </div>
         </div>
       `;
       document.getElementById('admin-content').innerHTML = html;
-      const renderPage = () => {
-        const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-        currentPage = Math.min(currentPage, pageCount - 1);
-        const start = currentPage * pageSize;
-        const pageProducts = filteredProducts.slice(start, start + pageSize);
-        document.getElementById('adminProductRows').innerHTML = pageProducts.map(product => `
+      const renderProducts = () => {
+        document.getElementById('adminProductRows').innerHTML = filteredProducts.map(product => `
           <tr>
             <td><img src="${product.image}" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:8px;" /></td>
             <td>${product.name}</td>
@@ -3035,26 +3025,15 @@
           </tr>
         `).join('');
         document.getElementById('adminProductPageInfo').textContent = filteredProducts.length
-          ? `Showing ${start + 1}-${Math.min(start + pageSize, filteredProducts.length)} of ${filteredProducts.length} products`
+          ? `Showing all ${filteredProducts.length} products`
           : 'No products found.';
-        document.getElementById('adminProductPrevious').disabled = currentPage === 0;
-        document.getElementById('adminProductNext').disabled = currentPage >= pageCount - 1;
       };
-      document.getElementById('adminProductPrevious').addEventListener('click', () => {
-        currentPage -= 1;
-        renderPage();
-      });
-      document.getElementById('adminProductNext').addEventListener('click', () => {
-        currentPage += 1;
-        renderPage();
-      });
       document.getElementById('productSearchAdmin').addEventListener('input', () => {
         const term = document.getElementById('productSearchAdmin').value.toLowerCase();
         filteredProducts = products.filter(product => [product.name, product.sku, product.category].join(' ').toLowerCase().includes(term));
-        currentPage = 0;
-        renderPage();
+        renderProducts();
       });
-      renderPage();
+      renderProducts();
     }
 
     function openAddProductModal() {
