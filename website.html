@@ -3709,6 +3709,25 @@
         return totals;
       }, {});
       const topCategories = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const { start: todayStart, end: todayEnd } = getAccountPeriod('daily');
+      const todayKey = `daily:${getLocalDateKey(todayStart)}`;
+      const todayOrders = orders.filter(order => {
+        const orderDate = new Date(order.date);
+        return !Number.isNaN(orderDate.getTime()) && orderDate >= todayStart && orderDate <= todayEnd;
+      });
+      const todayPaymentTotals = getPaymentTotals(todayOrders);
+      const todayExpectedReceipts = {
+        ebirr: Number(todayPaymentTotals['E-Birr']?.amount || 0),
+        bank: Number(todayPaymentTotals['CBE Bank Transfer']?.amount || 0),
+        cash: Number(todayPaymentTotals['Cash on Delivery']?.amount || todayPaymentTotals.Cash?.amount || 0),
+        other: Object.entries(todayPaymentTotals).reduce((sum, [method, values]) =>
+          ['E-Birr', 'CBE Bank Transfer', 'Cash on Delivery', 'Cash'].includes(method)
+            ? sum
+            : sum + Number(values.amount || 0), 0
+        )
+      };
+      const todayClosure = closures.find(item => item.key === todayKey);
+      const todayReceived = todayClosure?.receivedTotals || {};
       const html = `
         <div class="stats-grid">
           <div class="stat-card">
@@ -3756,13 +3775,49 @@
         <div class="widget">
           <div class="widget-header"><h3>Close Accounts</h3></div>
           <p style="color:var(--muted);margin-bottom:16px;">Xisaabta xir marka aad dhammayso maalinta, bisha ama sanadka. Warbixinta la xiray lama tirtiro; history ayay ku jiraysaa.</p>
+          <div class="panel" style="margin-bottom:18px;">
+            <h3>Xisaab-xirka Maanta · ${getLocalDateKey(todayStart)}</h3>
+            <p style="color:var(--muted);margin:8px 0 14px;">Geli lacagta dhabta ah ee maanta soo gashay. Isbarbardhiggu wuxuu ku salaysan yahay habka lacag-bixinta ee dalabyada lagu doortay; app-ku si toos ah ugama akhriyo E-Birr ama bangiga.</p>
+            <div class="list-slim" style="margin-bottom:16px;">
+              <div class="list-row"><span>E-Birr — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.ebirr)}</strong></div>
+              <div class="list-row"><span>CBE Bank — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.bank)}</strong></div>
+              <div class="list-row"><span>Cash — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.cash)}</strong></div>
+              <div class="list-row"><span>Habab kale — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.other)}</strong></div>
+            </div>
+            ${todayClosure ? `
+              <div class="panel" style="background:#f8fafc;">
+                <strong>Xisaabta maanta waa la xiray · ${todayClosure.closedAt}</strong>
+                <div class="list-slim" style="margin-top:10px;">
+                  <div class="list-row"><span>E-Birr dhab ahaan galay</span><strong>${formatMoney(todayReceived.ebirr)}</strong></div>
+                  <div class="list-row"><span>Bank (CBE) dhab ahaan galay</span><strong>${formatMoney(todayReceived.bank)}</strong></div>
+                  <div class="list-row"><span>Cash dhab ahaan galay</span><strong>${formatMoney(todayReceived.cash)}</strong></div>
+                  <div class="list-row"><span>Habab kale dhab ahaan galeen</span><strong>${formatMoney(todayReceived.other)}</strong></div>
+                  <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(Number(todayReceived.ebirr || 0) + Number(todayReceived.bank || 0) + Number(todayReceived.cash || 0) + Number(todayReceived.other || 0))}</strong></div>
+                </div>
+              </div>
+            ` : `
+              <form onsubmit="closeDailyAccountPeriod(event)">
+                <div class="form-grid">
+                  <div class="field-group"><label for="dailyReceivedEbirr">E-Birr dhab ahaan soo galay (ETB)</label><input id="dailyReceivedEbirr" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                  <div class="field-group"><label for="dailyReceivedBank">Bank / CBE dhab ahaan soo galay (ETB)</label><input id="dailyReceivedBank" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                  <div class="field-group"><label for="dailyReceivedCash">Cash dhab ahaan soo galay (ETB)</label><input id="dailyReceivedCash" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                  <div class="field-group"><label for="dailyReceivedOther">Habab kale (Zaad, M-Pesa, iwm.) (ETB)</label><input id="dailyReceivedOther" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                </div>
+                <div id="dailyClosurePreview" class="list-slim" style="margin:14px 0;">
+                  <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(0)}</strong></div>
+                  <div class="list-row"><span>Farqiga marka loo eego dalabyada</span><strong>${formatMoney(0)}</strong></div>
+                </div>
+                <button class="btn btn-primary" type="submit">Xir xisaabta maanta</button>
+              </form>
+            `}
+          </div>
           <div class="panel" style="margin-bottom:18px;border:1px solid rgba(239,68,68,0.35);">
             <h3>Start Fresh</h3>
             <p style="color:var(--muted);margin:8px 0 14px;">Delete test accounting data only. Products, suppliers, settings and admin login will remain.</p>
             <button class="btn btn-danger" onclick="resetTestAccountingData()">Delete Test Accounting Data</button>
           </div>
           <div class="dashboard-row">
-            ${['daily', 'monthly', 'yearly'].map(period => `
+            ${['monthly', 'yearly'].map(period => `
               <div class="panel">
                 <h3>${period === 'daily' ? 'Daily Closing' : period === 'monthly' ? 'Monthly Closing' : 'Yearly Closing'}</h3>
                 <p style="color:var(--muted);margin:8px 0 14px;">${getAccountPeriodLabel(period)}</p>
@@ -3772,7 +3827,11 @@
           </div>
           <div style="margin-top:20px;">
             <h3>Closing History</h3>
-            ${closures.length ? `<table class="admin-table" style="margin-top:10px;"><thead><tr><th>Period</th><th>Range</th><th>Orders</th><th>Cash</th><th>Other accounts</th><th>Total</th><th>Closed at</th></tr></thead><tbody>${closures.slice().reverse().map(item => `<tr><td>${item.period}</td><td>${item.range}</td><td>${item.orders}</td><td>${formatMoney(item.cash)}</td><td>${formatMoney(item.otherAccounts)}</td><td>${formatMoney(item.revenue)}</td><td>${item.closedAt}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No account closing has been recorded yet.</div>'}
+            ${closures.length ? `<table class="admin-table" style="margin-top:10px;"><thead><tr><th>Period</th><th>Range</th><th>Orders</th><th>E-Birr galay</th><th>Bank galay</th><th>Cash galay</th><th>Kale galeen</th><th>Wadarta dhabta ah</th><th>Dalabyo guud</th><th>Closed at</th></tr></thead><tbody>${closures.slice().reverse().map(item => {
+              const received = item.receivedTotals || {};
+              const receivedTotal = ['ebirr', 'bank', 'cash', 'other'].reduce((sum, key) => sum + Number(received[key] || 0), 0);
+              return `<tr><td>${item.period}</td><td>${item.range}</td><td>${item.orders}</td><td>${received.ebirr === undefined ? '—' : formatMoney(received.ebirr)}</td><td>${received.bank === undefined ? '—' : formatMoney(received.bank)}</td><td>${received.cash === undefined ? formatMoney(item.cash) : formatMoney(received.cash)}</td><td>${received.other === undefined ? '—' : formatMoney(received.other)}</td><td>${item.receivedTotals ? formatMoney(receivedTotal) : '—'}</td><td>${formatMoney(item.revenue)}</td><td>${item.closedAt}</td></tr>`;
+            }).join('')}</tbody></table>` : '<div class="empty-state">No account closing has been recorded yet.</div>'}
           </div>
         </div>
       `;
@@ -4014,9 +4073,80 @@
       return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
     }
 
+    function updateDailyClosurePreview() {
+      const readAmount = id => Number(document.getElementById(id)?.value);
+      const amounts = {
+        ebirr: readAmount('dailyReceivedEbirr'),
+        bank: readAmount('dailyReceivedBank'),
+        cash: readAmount('dailyReceivedCash'),
+        other: readAmount('dailyReceivedOther')
+      };
+      if (Object.values(amounts).some(amount => !Number.isFinite(amount) || amount < 0)) return;
+      const receivedTotal = Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
+      const { start, end } = getAccountPeriod('daily');
+      const orders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
+        const orderDate = new Date(order.date);
+        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
+      });
+      const expectedTotal = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const difference = receivedTotal - expectedTotal;
+      const preview = document.getElementById('dailyClosurePreview');
+      if (!preview) return;
+      preview.innerHTML = `
+        <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(receivedTotal)}</strong></div>
+        <div class="list-row"><span>${difference < 0 ? 'Lacag ka dhiman dalabyada' : 'Farqiga marka loo eego dalabyada'}</span><strong>${formatMoney(difference)}</strong></div>
+      `;
+    }
+
+    function closeDailyAccountPeriod(event) {
+      event.preventDefault();
+      const { start, end } = getAccountPeriod('daily');
+      const key = `daily:${getLocalDateKey(start)}`;
+      const closures = db.get(DB_KEYS.accountClosures, []);
+      if (closures.some(item => item.key === key)) {
+        showToast('Xisaabta maanta hore ayaa loo xiray.', 'warning');
+        renderAdminReports();
+        return;
+      }
+      const receivedTotals = {
+        ebirr: Number(document.getElementById('dailyReceivedEbirr').value),
+        bank: Number(document.getElementById('dailyReceivedBank').value),
+        cash: Number(document.getElementById('dailyReceivedCash').value),
+        other: Number(document.getElementById('dailyReceivedOther').value)
+      };
+      if (Object.values(receivedTotals).some(amount => !Number.isFinite(amount) || amount < 0)) {
+        showToast('Geli lacag sax ah oo eber ama ka badan ah meel kasta.', 'warning');
+        return;
+      }
+      const periodOrders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
+        const orderDate = new Date(order.date);
+        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
+      });
+      const revenue = periodOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const receivedTotal = Object.values(receivedTotals).reduce((sum, amount) => sum + amount, 0);
+      closures.push({
+        id: uid('closure'),
+        key,
+        period: 'Daily',
+        range: getAccountPeriodLabel('daily'),
+        orders: periodOrders.length,
+        revenue,
+        cash: receivedTotals.cash,
+        otherAccounts: receivedTotals.ebirr + receivedTotals.bank + receivedTotals.other,
+        receivedTotals,
+        receivedTotal,
+        variance: receivedTotal - revenue,
+        paymentTotals: getPaymentTotals(periodOrders),
+        closedAt: new Date().toLocaleString()
+      });
+      db.set(DB_KEYS.accountClosures, closures);
+      renderAdminReports();
+      showToast('Xisaabta maanta waa la xiray, lacagihii dhab ahaan soo galay waa la kaydiyey.', 'success');
+    }
+
     function closeAccountPeriod(period) {
       const { start, end } = getAccountPeriod(period);
-      const key = `${period}:${start.toISOString().slice(0, 10)}`;
+      const key = `${period}:${getLocalDateKey(start)}`;
       const closures = db.get(DB_KEYS.accountClosures, []);
       if (closures.some(item => item.key === key)) {
         showToast('This account period is already closed.', 'warning');
