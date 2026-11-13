@@ -3669,22 +3669,93 @@
     }
 
     function renderAdminReports() {
-      setAdminTitle('Reports');
+      setAdminTitle('Reports & Analytics');
       const orders = db.get(DB_KEYS.orders, defaultOrders);
       const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
-      const avgOrder = orders.length ? totalRevenue / orders.length : 0;
       const closures = db.get(DB_KEYS.accountClosures, []);
       const paymentTotals = getPaymentTotals(orders);
+      const products = db.get(DB_KEYS.products, defaultProducts);
+      const lowStockThreshold = Number(getSettings().lowStockThreshold || 5);
+      const lowStockProducts = products.filter(product =>
+        Number(product.stock) <= lowStockThreshold && product.status !== 'Hidden'
+      );
+      const inventoryValue = products.reduce((sum, product) =>
+        sum + Math.max(0, Number(product.price) || 0) * Math.max(0, Number(product.stock) || 0), 0
+      );
+      const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - (6 - index));
+        return {
+          key: getLocalDateKey(date),
+          label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          total: 0
+        };
+      });
+      orders.forEach(order => {
+        const orderDate = new Date(order.date);
+        if (Number.isNaN(orderDate.getTime())) return;
+        const day = lastSevenDays.find(item => item.key === getLocalDateKey(orderDate));
+        if (day) day.total += Number(order.amount) || 0;
+      });
+      const orderStatuses = orders.reduce((statuses, order) => {
+        const status = order.status || 'Other';
+        statuses[status] = (statuses[status] || 0) + 1;
+        return statuses;
+      }, {});
+      const categories = products.reduce((totals, product) => {
+        const category = product.category || 'Other';
+        totals[category] = (totals[category] || 0) + 1;
+        return totals;
+      }, {});
+      const topCategories = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
       const html = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon sales"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div class="stat-text"><small>Total Order Revenue</small><strong>${formatMoney(totalRevenue)}</strong></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orders"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div class="stat-text"><small>Total Orders</small><strong>${orders.length}</strong></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon revenue"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="stat-text"><small>Inventory at Listed Price</small><strong>${formatMoney(inventoryValue)}</strong></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yearly"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="stat-text"><small>Low Stock Items</small><strong>${lowStockProducts.length}</strong></div>
+          </div>
+        </div>
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Sales Trend · Last 7 Days</h3></div>
+            <canvas id="reportSalesChart" height="120"></canvas>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Orders by Status</h3></div>
+            <canvas id="reportOrderStatusChart" height="160"></canvas>
+          </div>
+        </div>
+        <div class="dashboard-row">
+          <div class="widget">
+            <div class="widget-header"><h3>Payment Accounts</h3></div>
+            <div class="list-slim">
+              ${Object.entries(paymentTotals).length ? Object.entries(paymentTotals).map(([method, values]) => `<div class="list-row"><span>${method} <small style="color:var(--muted);">(${values.orders} orders)</small></span><strong>${formatMoney(values.amount)}</strong></div>`).join('') : '<div class="empty-state">No payment data yet.</div>'}
+            </div>
+          </div>
+          <div class="widget">
+            <div class="widget-header"><h3>Product Categories</h3></div>
+            <div class="list-slim">
+              ${topCategories.length ? topCategories.map(([category, count]) => `<div class="list-row"><span>${category}</span><strong>${count} products</strong></div>`).join('') : '<div class="empty-state">No product data yet.</div>'}
+            </div>
+            <small style="display:block;margin-top:8px;color:var(--muted);">Category counts are products in the catalog, not sales by category.</small>
+          </div>
+        </div>
         <div class="widget">
           <div class="widget-header"><h3>Close Accounts</h3></div>
           <p style="color:var(--muted);margin-bottom:16px;">Xisaabta xir marka aad dhammayso maalinta, bisha ama sanadka. Warbixinta la xiray lama tirtiro; history ayay ku jiraysaa.</p>
-          <div class="panel" style="margin-bottom:18px;">
-            <h3>Payment Accounts</h3>
-            <div class="list-slim" style="margin-top:10px;">
-              ${Object.entries(paymentTotals).map(([method, values]) => `<div class="list-row"><span>${method} <small style="color:var(--muted);">(${values.orders} orders)</small></span><strong>${formatMoney(values.amount)}</strong></div>`).join('')}
-            </div>
-          </div>
           <div class="panel" style="margin-bottom:18px;border:1px solid rgba(239,68,68,0.35);">
             <h3>Start Fresh</h3>
             <p style="color:var(--muted);margin:8px 0 14px;">Delete test accounting data only. Products, suppliers, settings and admin login will remain.</p>
@@ -3704,26 +3775,27 @@
             ${closures.length ? `<table class="admin-table" style="margin-top:10px;"><thead><tr><th>Period</th><th>Range</th><th>Orders</th><th>Cash</th><th>Other accounts</th><th>Total</th><th>Closed at</th></tr></thead><tbody>${closures.slice().reverse().map(item => `<tr><td>${item.period}</td><td>${item.range}</td><td>${item.orders}</td><td>${formatMoney(item.cash)}</td><td>${formatMoney(item.otherAccounts)}</td><td>${formatMoney(item.revenue)}</td><td>${item.closedAt}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No account closing has been recorded yet.</div>'}
           </div>
         </div>
-        <div class="dashboard-row">
-          <div class="widget">
-            <div class="widget-header"><h3>Sales Report</h3></div>
-            <canvas id="reportSalesChart" height="120"></canvas>
-          </div>
-          <div class="widget">
-            <div class="widget-header"><h3>Summary</h3></div>
-            <div class="list-slim">
-              <div class="list-row"><span>Total Revenue</span><strong>${formatMoney(totalRevenue)}</strong></div>
-              <div class="list-row"><span>Total Orders</span><strong>${orders.length}</strong></div>
-              <div class="list-row"><span>Average Order</span><strong>${formatMoney(avgOrder)}</strong></div>
-              <div class="list-row"><span>Best Category</span><strong>Electronics</strong></div>
-            </div>
-          </div>
-        </div>
       `;
       document.getElementById('admin-content').innerHTML = html;
       setTimeout(() => {
         const ctx = document.getElementById('reportSalesChart');
-        if (ctx) new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets: [{ label: 'Revenue', data: [2000, 3400, 2800, 5200, 3600, 6100, 5400], backgroundColor: '#f5c124' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        if (ctx) new Chart(ctx.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: lastSevenDays.map(day => day.label),
+            datasets: [{ label: 'Revenue', data: lastSevenDays.map(day => day.total), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.12)', fill: true, tension: 0.35 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+        const statusCanvas = document.getElementById('reportOrderStatusChart');
+        if (statusCanvas) new Chart(statusCanvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(orderStatuses),
+            datasets: [{ data: Object.values(orderStatuses), backgroundColor: ['#10b981', '#2563eb', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'] }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
       }, 50);
     }
 
