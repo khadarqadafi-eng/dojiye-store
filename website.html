@@ -1024,6 +1024,26 @@
       box-shadow: var(--shadow);
       padding: 20px;
     }
+    .report-chart {
+      position: relative;
+      height: 240px;
+    }
+    .report-chart.compact {
+      height: 220px;
+    }
+    .report-chart canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .reports-static .reveal-item {
+      opacity: 1;
+      animation: none;
+    }
+    .reports-static .widget:hover,
+    .reports-static .panel:hover,
+    .reports-static .stat-card:hover {
+      transform: none;
+    }
     .widget-header {
       display: flex;
       align-items: center;
@@ -3747,14 +3767,50 @@
             <div class="stat-text"><small>Low Stock Items</small><strong>${lowStockProducts.length}</strong></div>
           </div>
         </div>
+        <div class="widget" style="margin-bottom:22px;">
+          <div class="widget-header"><h3>Xisaab-xirka Maanta · ${getLocalDateKey(todayStart)}</h3></div>
+          <p style="color:var(--muted);margin:8px 0 14px;">Geli lacagta dhabta ah ee maanta soo gashay. Isbarbardhiggu wuxuu ku salaysan yahay habka lacag-bixinta ee dalabyada lagu doortay; app-ku si toos ah ugama akhriyo E-Birr ama bangiga.</p>
+          <div class="list-slim" style="margin-bottom:16px;">
+            <div class="list-row"><span>E-Birr — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.ebirr)}</strong></div>
+            <div class="list-row"><span>CBE Bank — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.bank)}</strong></div>
+            <div class="list-row"><span>Cash — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.cash)}</strong></div>
+            <div class="list-row"><span>Habab kale — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.other)}</strong></div>
+          </div>
+          ${todayClosure ? `
+            <div class="panel" style="background:#f8fafc;">
+              <strong>Xisaabta maanta waa la xiray · ${todayClosure.closedAt}</strong>
+              <div class="list-slim" style="margin-top:10px;">
+                <div class="list-row"><span>E-Birr dhab ahaan galay</span><strong>${formatMoney(todayReceived.ebirr)}</strong></div>
+                <div class="list-row"><span>Bank (CBE) dhab ahaan galay</span><strong>${formatMoney(todayReceived.bank)}</strong></div>
+                <div class="list-row"><span>Cash dhab ahaan galay</span><strong>${formatMoney(todayReceived.cash)}</strong></div>
+                <div class="list-row"><span>Habab kale dhab ahaan galeen</span><strong>${formatMoney(todayReceived.other)}</strong></div>
+                <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(Number(todayReceived.ebirr || 0) + Number(todayReceived.bank || 0) + Number(todayReceived.cash || 0) + Number(todayReceived.other || 0))}</strong></div>
+              </div>
+            </div>
+          ` : `
+            <form onsubmit="closeDailyAccountPeriod(event)">
+              <div class="form-grid">
+                <div class="field-group"><label for="dailyReceivedEbirr">E-Birr dhab ahaan soo galay (ETB)</label><input id="dailyReceivedEbirr" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                <div class="field-group"><label for="dailyReceivedBank">Bank / CBE dhab ahaan soo galay (ETB)</label><input id="dailyReceivedBank" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                <div class="field-group"><label for="dailyReceivedCash">Cash dhab ahaan soo galay (ETB)</label><input id="dailyReceivedCash" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+                <div class="field-group"><label for="dailyReceivedOther">Habab kale (Zaad, M-Pesa, iwm.) (ETB)</label><input id="dailyReceivedOther" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
+              </div>
+              <div id="dailyClosurePreview" class="list-slim" style="margin:14px 0;">
+                <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(0)}</strong></div>
+                <div class="list-row"><span>Farqiga marka loo eego dalabyada</span><strong>${formatMoney(0)}</strong></div>
+              </div>
+              <button class="btn btn-primary" type="submit">Xir xisaabta maanta</button>
+            </form>
+          `}
+        </div>
         <div class="dashboard-row">
           <div class="widget">
             <div class="widget-header"><h3>Sales Trend · Last 7 Days</h3></div>
-            <canvas id="reportSalesChart" height="120"></canvas>
+            <div class="report-chart"><canvas id="reportSalesChart"></canvas></div>
           </div>
           <div class="widget">
             <div class="widget-header"><h3>Orders by Status</h3></div>
-            <canvas id="reportOrderStatusChart" height="160"></canvas>
+            <div class="report-chart compact"><canvas id="reportOrderStatusChart"></canvas></div>
           </div>
         </div>
         <div class="dashboard-row">
@@ -3775,42 +3831,6 @@
         <div class="widget">
           <div class="widget-header"><h3>Close Accounts</h3></div>
           <p style="color:var(--muted);margin-bottom:16px;">Xisaabta xir marka aad dhammayso maalinta, bisha ama sanadka. Warbixinta la xiray lama tirtiro; history ayay ku jiraysaa.</p>
-          <div class="panel" style="margin-bottom:18px;">
-            <h3>Xisaab-xirka Maanta · ${getLocalDateKey(todayStart)}</h3>
-            <p style="color:var(--muted);margin:8px 0 14px;">Geli lacagta dhabta ah ee maanta soo gashay. Isbarbardhiggu wuxuu ku salaysan yahay habka lacag-bixinta ee dalabyada lagu doortay; app-ku si toos ah ugama akhriyo E-Birr ama bangiga.</p>
-            <div class="list-slim" style="margin-bottom:16px;">
-              <div class="list-row"><span>E-Birr — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.ebirr)}</strong></div>
-              <div class="list-row"><span>CBE Bank — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.bank)}</strong></div>
-              <div class="list-row"><span>Cash — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.cash)}</strong></div>
-              <div class="list-row"><span>Habab kale — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.other)}</strong></div>
-            </div>
-            ${todayClosure ? `
-              <div class="panel" style="background:#f8fafc;">
-                <strong>Xisaabta maanta waa la xiray · ${todayClosure.closedAt}</strong>
-                <div class="list-slim" style="margin-top:10px;">
-                  <div class="list-row"><span>E-Birr dhab ahaan galay</span><strong>${formatMoney(todayReceived.ebirr)}</strong></div>
-                  <div class="list-row"><span>Bank (CBE) dhab ahaan galay</span><strong>${formatMoney(todayReceived.bank)}</strong></div>
-                  <div class="list-row"><span>Cash dhab ahaan galay</span><strong>${formatMoney(todayReceived.cash)}</strong></div>
-                  <div class="list-row"><span>Habab kale dhab ahaan galeen</span><strong>${formatMoney(todayReceived.other)}</strong></div>
-                  <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(Number(todayReceived.ebirr || 0) + Number(todayReceived.bank || 0) + Number(todayReceived.cash || 0) + Number(todayReceived.other || 0))}</strong></div>
-                </div>
-              </div>
-            ` : `
-              <form onsubmit="closeDailyAccountPeriod(event)">
-                <div class="form-grid">
-                  <div class="field-group"><label for="dailyReceivedEbirr">E-Birr dhab ahaan soo galay (ETB)</label><input id="dailyReceivedEbirr" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
-                  <div class="field-group"><label for="dailyReceivedBank">Bank / CBE dhab ahaan soo galay (ETB)</label><input id="dailyReceivedBank" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
-                  <div class="field-group"><label for="dailyReceivedCash">Cash dhab ahaan soo galay (ETB)</label><input id="dailyReceivedCash" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
-                  <div class="field-group"><label for="dailyReceivedOther">Habab kale (Zaad, M-Pesa, iwm.) (ETB)</label><input id="dailyReceivedOther" type="number" min="0" step="0.01" value="0" required oninput="updateDailyClosurePreview()" /></div>
-                </div>
-                <div id="dailyClosurePreview" class="list-slim" style="margin:14px 0;">
-                  <div class="list-row"><span>Wadarta lacagta dhabta ah</span><strong>${formatMoney(0)}</strong></div>
-                  <div class="list-row"><span>Farqiga marka loo eego dalabyada</span><strong>${formatMoney(0)}</strong></div>
-                </div>
-                <button class="btn btn-primary" type="submit">Xir xisaabta maanta</button>
-              </form>
-            `}
-          </div>
           <div class="panel" style="margin-bottom:18px;border:1px solid rgba(239,68,68,0.35);">
             <h3>Start Fresh</h3>
             <p style="color:var(--muted);margin:8px 0 14px;">Delete test accounting data only. Products, suppliers, settings and admin login will remain.</p>
@@ -4742,6 +4762,7 @@
     function setAdminTitle(title) {
       currentAdminPage = title;
       document.getElementById('adminTitle').textContent = title;
+      document.getElementById('admin-content').classList.toggle('reports-static', title === 'Reports & Analytics');
     }
 
     function printOrderInvoice(orderId) {
