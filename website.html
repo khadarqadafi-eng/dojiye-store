@@ -975,6 +975,9 @@
       gap: 18px;
       margin-bottom: 22px;
     }
+    .reports-summary-grid {
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
     .stat-card {
       background: var(--white);
       border-radius: 12px;
@@ -2860,26 +2863,84 @@
       `);
     }
 
+    function isOrderPaymentReceived(order) {
+      const status = String(order?.paymentStatus || '').trim().toLowerCase();
+      const orderStatus = String(order?.status || '').trim().toLowerCase();
+      return ['paid', 'received', 'confirmed'].includes(status) && orderStatus !== 'cancelled';
+    }
+
+    function getOrderPaymentDate(order) {
+      const confirmedDate = order?.paymentConfirmedAt ? new Date(order.paymentConfirmedAt) : null;
+      if (confirmedDate && !Number.isNaN(confirmedDate.getTime())) return confirmedDate;
+      const orderDate = order?.date ? new Date(order.date) : null;
+      return orderDate && !Number.isNaN(orderDate.getTime()) ? orderDate : null;
+    }
+
+    function getReceivedOrdersInPeriod(orders, start, end) {
+      return orders.filter(order => {
+        if (!isOrderPaymentReceived(order)) return false;
+        const paymentDate = getOrderPaymentDate(order);
+        return paymentDate && paymentDate >= start && paymentDate < end;
+      });
+    }
+
+    function sumOrderAmounts(orders) {
+      return orders.reduce((sum, order) => sum + Math.max(0, Number(order.amount) || 0), 0);
+    }
+
     function renderAdminDashboard() {
       if (!isSupabaseAdmin) return;
       setAdminTitle('Dashboard');
       const orders = db.get(DB_KEYS.orders, []);
       const products = db.get(DB_KEYS.products, defaultProducts);
       const customers = db.get(DB_KEYS.customers, []);
-      const totalSales = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
-      const today = new Date().toDateString();
-      const todaysOrders = orders.filter(order => new Date(order.date).toDateString() === today || order.date.includes(new Date().toLocaleString('en-US', { month: 'short' })));
-      const todaysSales = todaysOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const todaysOrders = orders.filter(order => {
+        const orderDate = order.date ? new Date(order.date) : null;
+        return orderDate && !Number.isNaN(orderDate.getTime())
+          && orderDate >= todayStart && orderDate < todayEnd
+          && String(order.status || '').toLowerCase() !== 'cancelled';
+      });
+      const todaysReceivedOrders = getReceivedOrdersInPeriod(orders, todayStart, todayEnd);
+      const monthReceivedOrders = getReceivedOrdersInPeriod(orders, monthStart, todayEnd);
+      const yearReceivedOrders = getReceivedOrdersInPeriod(orders, yearStart, todayEnd);
+      const receivedOrders = orders.filter(isOrderPaymentReceived);
+      const todaysSales = sumOrderAmounts(todaysReceivedOrders);
+      const monthlyRevenue = sumOrderAmounts(monthReceivedOrders);
+      const yearlyRevenue = sumOrderAmounts(yearReceivedOrders);
+      const totalSales = sumOrderAmounts(receivedOrders);
       const lowStockProducts = products.filter(product => Number(product.stock) <= Number(getSettings().lowStockThreshold || 5) && product.status !== 'Hidden');
       const topProducts = [...products].sort((a, b) => Number(b.reviews || 0) - Number(a.reviews || 0)).slice(0, 4);
 
-      const salesData = [12000, 18000, 14000, 22000, 19000, 26000, 31000];
+      const salesDays = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() - (6 - index));
+        return {
+          start: new Date(date),
+          key: getLocalDateKey(date),
+          label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          total: 0
+        };
+      });
+      salesDays.forEach((day, index) => {
+        const dayEnd = index === salesDays.length - 1
+          ? todayEnd
+          : new Date(salesDays[index + 1].start);
+        getReceivedOrdersInPeriod(orders, day.start, dayEnd).forEach(order => {
+          const paymentDate = getOrderPaymentDate(order);
+          if (!paymentDate) return;
+          day.total += Math.max(0, Number(order.amount) || 0);
+        });
       const adminHTML = `
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon sales"><i class="fa-solid fa-bag-shopping"></i></div>
             <div class="stat-text">
-              <small>Today's Sales</small>
+              <small>Today's Received Sales</small>
               <strong>${formatMoney(todaysSales || 0)}</strong>
             </div>
           </div>
@@ -2894,14 +2955,14 @@
             <div class="stat-icon revenue"><i class="fa-solid fa-wallet"></i></div>
             <div class="stat-text">
               <small>Monthly Revenue</small>
-              <strong>${formatMoney(totalSales * 0.42)}</strong>
+              <strong>${formatMoney(monthlyRevenue)}</strong>
             </div>
           </div>
           <div class="stat-card">
             <div class="stat-icon yearly"><i class="fa-solid fa-money-bill-wave"></i></div>
             <div class="stat-text">
               <small>Yearly Revenue</small>
-              <strong>${formatMoney(totalSales * 1.35)}</strong>
+              <strong>${formatMoney(yearlyRevenue)}</strong>
             </div>
           </div>
         </div>
@@ -2914,10 +2975,10 @@
           <div class="widget">
             <div class="widget-header"><h3>Revenue Summary</h3></div>
             <div class="list-slim">
-              <div class="list-row"><span>Today</span><strong>${formatMoney(todaysSales || 0)}</strong></div>
-              <div class="list-row"><span>Month</span><strong>${formatMoney(totalSales * 0.42)}</strong></div>
-              <div class="list-row"><span>Year</span><strong>${formatMoney(totalSales * 1.35)}</strong></div>
-              <div class="list-row"><span>Total</span><strong>${formatMoney(totalSales)}</strong></div>
+              <div class="list-row"><span>Today received</span><strong>${formatMoney(todaysSales)}</strong></div>
+              <div class="list-row"><span>Month received</span><strong>${formatMoney(monthlyRevenue)}</strong></div>
+              <div class="list-row"><span>Year received</span><strong>${formatMoney(yearlyRevenue)}</strong></div>
+              <div class="list-row"><span>All-time received</span><strong>${formatMoney(totalSales)}</strong></div>
             </div>
           </div>
         </div>
@@ -2973,7 +3034,7 @@
         if (canvas) {
           new Chart(canvas.getContext('2d'), {
             type: 'line',
-            data: { labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul'], datasets: [{ label: 'Sales', data: salesData, borderColor: '#f5c124', backgroundColor: 'rgba(245,193,36,0.12)', fill: true, tension: 0.4 }] },
+            data: { labels: salesDays.map(day => day.label), datasets: [{ label: 'Received sales', data: salesDays.map(day => day.total), borderColor: '#f5c124', backgroundColor: 'rgba(245,193,36,0.12)', fill: true, tension: 0.4 }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
           });
         }
@@ -3691,32 +3752,21 @@
     function renderAdminReports() {
       setAdminTitle('Reports & Analytics');
       const orders = db.get(DB_KEYS.orders, defaultOrders);
-      const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const receivedOrders = orders.filter(isOrderPaymentReceived);
+      const totalRevenue = sumOrderAmounts(receivedOrders);
       const closures = db.get(DB_KEYS.accountClosures, []);
-      const paymentTotals = getPaymentTotals(orders);
+      const paymentTotals = getPaymentTotals(receivedOrders);
       const products = db.get(DB_KEYS.products, defaultProducts);
-      const lowStockThreshold = Number(getSettings().lowStockThreshold || 5);
-      const lowStockProducts = products.filter(product =>
-        Number(product.stock) <= lowStockThreshold && product.status !== 'Hidden'
-      );
-      const inventoryValue = products.reduce((sum, product) =>
-        sum + Math.max(0, Number(product.price) || 0) * Math.max(0, Number(product.stock) || 0), 0
-      );
+      const now = new Date();
       const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() - (6 - index));
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - index));
+        const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+        const dailyOrders = getReceivedOrdersInPeriod(orders, start, end);
         return {
-          key: getLocalDateKey(date),
-          label: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          total: 0
+          key: getLocalDateKey(start),
+          label: start.toLocaleDateString('en-US', { weekday: 'short' }),
+          total: sumOrderAmounts(dailyOrders)
         };
-      });
-      orders.forEach(order => {
-        const orderDate = new Date(order.date);
-        if (Number.isNaN(orderDate.getTime())) return;
-        const day = lastSevenDays.find(item => item.key === getLocalDateKey(orderDate));
-        if (day) day.total += Number(order.amount) || 0;
       });
       const orderStatuses = orders.reduce((statuses, order) => {
         const status = order.status || 'Other';
@@ -3730,12 +3780,10 @@
       }, {});
       const topCategories = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 5);
       const { start: todayStart, end: todayEnd } = getAccountPeriod('daily');
+      const todayEndExclusive = new Date(todayEnd.getTime() + 1);
       const todayKey = `daily:${getLocalDateKey(todayStart)}`;
-      const todayOrders = orders.filter(order => {
-        const orderDate = new Date(order.date);
-        return !Number.isNaN(orderDate.getTime()) && orderDate >= todayStart && orderDate <= todayEnd;
-      });
-      const todayPaymentTotals = getPaymentTotals(todayOrders);
+      const todayReceivedOrders = getReceivedOrdersInPeriod(orders, todayStart, todayEndExclusive);
+      const todayPaymentTotals = getPaymentTotals(todayReceivedOrders);
       const todayExpectedReceipts = {
         ebirr: Number(todayPaymentTotals['E-Birr']?.amount || 0),
         bank: Number(todayPaymentTotals['CBE Bank Transfer']?.amount || 0),
@@ -3749,22 +3797,14 @@
       const todayClosure = closures.find(item => item.key === todayKey);
       const todayReceived = todayClosure?.receivedTotals || {};
       const html = `
-        <div class="stats-grid">
+        <div class="stats-grid reports-summary-grid">
           <div class="stat-card">
             <div class="stat-icon sales"><i class="fa-solid fa-sack-dollar"></i></div>
-            <div class="stat-text"><small>Total Order Revenue</small><strong>${formatMoney(totalRevenue)}</strong></div>
+            <div class="stat-text"><small>Total Received Revenue</small><strong>${formatMoney(totalRevenue)}</strong></div>
           </div>
           <div class="stat-card">
             <div class="stat-icon orders"><i class="fa-solid fa-cart-shopping"></i></div>
             <div class="stat-text"><small>Total Orders</small><strong>${orders.length}</strong></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon revenue"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div class="stat-text"><small>Inventory at Listed Price</small><strong>${formatMoney(inventoryValue)}</strong></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon yearly"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div class="stat-text"><small>Low Stock Items</small><strong>${lowStockProducts.length}</strong></div>
           </div>
         </div>
         <div class="widget" style="margin-bottom:22px;">
@@ -4104,11 +4144,12 @@
       if (Object.values(amounts).some(amount => !Number.isFinite(amount) || amount < 0)) return;
       const receivedTotal = Object.values(amounts).reduce((sum, amount) => sum + amount, 0);
       const { start, end } = getAccountPeriod('daily');
-      const orders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
-        const orderDate = new Date(order.date);
-        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
-      });
-      const expectedTotal = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const orders = getReceivedOrdersInPeriod(
+        db.get(DB_KEYS.orders, defaultOrders),
+        start,
+        new Date(end.getTime() + 1)
+      );
+      const expectedTotal = sumOrderAmounts(orders);
       const difference = receivedTotal - expectedTotal;
       const preview = document.getElementById('dailyClosurePreview');
       if (!preview) return;
@@ -4142,21 +4183,26 @@
         const orderDate = new Date(order.date);
         return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
       });
-      const revenue = periodOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const receivedPeriodOrders = getReceivedOrdersInPeriod(
+        db.get(DB_KEYS.orders, defaultOrders),
+        start,
+        new Date(end.getTime() + 1)
+      );
+      const revenue = sumOrderAmounts(receivedPeriodOrders);
       const receivedTotal = Object.values(receivedTotals).reduce((sum, amount) => sum + amount, 0);
       closures.push({
         id: uid('closure'),
         key,
         period: 'Daily',
         range: getAccountPeriodLabel('daily'),
-        orders: periodOrders.length,
+        orders: receivedPeriodOrders.length,
         revenue,
         cash: receivedTotals.cash,
         otherAccounts: receivedTotals.ebirr + receivedTotals.bank + receivedTotals.other,
         receivedTotals,
         receivedTotal,
         variance: receivedTotal - revenue,
-        paymentTotals: getPaymentTotals(periodOrders),
+        paymentTotals: getPaymentTotals(receivedPeriodOrders),
         closedAt: new Date().toLocaleString()
       });
       db.set(DB_KEYS.accountClosures, closures);
@@ -4172,11 +4218,12 @@
         showToast('This account period is already closed.', 'warning');
         return;
       }
-      const periodOrders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
-        const orderDate = new Date(order.date);
-        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
-      });
-      const revenue = periodOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+      const periodOrders = getReceivedOrdersInPeriod(
+        db.get(DB_KEYS.orders, defaultOrders),
+        start,
+        new Date(end.getTime() + 1)
+      );
+      const revenue = sumOrderAmounts(periodOrders);
       const paymentTotals = getPaymentTotals(periodOrders);
       const cash = paymentTotals['Cash on Delivery']?.amount || paymentTotals.Cash?.amount || 0;
       closures.push({
