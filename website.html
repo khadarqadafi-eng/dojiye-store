@@ -2931,10 +2931,9 @@
           ? todayEnd
           : new Date(salesDays[index + 1].start);
         getReceivedOrdersInPeriod(orders, day.start, dayEnd).forEach(order => {
-          const paymentDate = getOrderPaymentDate(order);
-          if (!paymentDate) return;
           day.total += Math.max(0, Number(order.amount) || 0);
         });
+      });
       const adminHTML = `
         <div class="stats-grid">
           <div class="stat-card">
@@ -3811,10 +3810,10 @@
           <div class="widget-header"><h3>Xisaab-xirka Maanta · ${getLocalDateKey(todayStart)}</h3></div>
           <p style="color:var(--muted);margin:8px 0 14px;">Geli lacagta dhabta ah ee maanta soo gashay. Isbarbardhiggu wuxuu ku salaysan yahay habka lacag-bixinta ee dalabyada lagu doortay; app-ku si toos ah ugama akhriyo E-Birr ama bangiga.</p>
           <div class="list-slim" style="margin-bottom:16px;">
-            <div class="list-row"><span>E-Birr — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.ebirr)}</strong></div>
-            <div class="list-row"><span>CBE Bank — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.bank)}</strong></div>
-            <div class="list-row"><span>Cash — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.cash)}</strong></div>
-            <div class="list-row"><span>Habab kale — dalabyo lagu calaamadeeyay</span><strong>${formatMoney(todayExpectedReceipts.other)}</strong></div>
+            <div class="list-row"><span>E-Birr — lacag la xaqiijiyey maanta</span><strong>${formatMoney(todayExpectedReceipts.ebirr)}</strong></div>
+            <div class="list-row"><span>CBE Bank — lacag la xaqiijiyey maanta</span><strong>${formatMoney(todayExpectedReceipts.bank)}</strong></div>
+            <div class="list-row"><span>Cash — lacag la xaqiijiyey maanta</span><strong>${formatMoney(todayExpectedReceipts.cash)}</strong></div>
+            <div class="list-row"><span>Habab kale — lacag la xaqiijiyey maanta</span><strong>${formatMoney(todayExpectedReceipts.other)}</strong></div>
           </div>
           ${todayClosure ? `
             <div class="panel" style="background:#f8fafc;">
@@ -4179,10 +4178,6 @@
         showToast('Geli lacag sax ah oo eber ama ka badan ah meel kasta.', 'warning');
         return;
       }
-      const periodOrders = db.get(DB_KEYS.orders, defaultOrders).filter(order => {
-        const orderDate = new Date(order.date);
-        return !Number.isNaN(orderDate.getTime()) && orderDate >= start && orderDate <= end;
-      });
       const receivedPeriodOrders = getReceivedOrdersInPeriod(
         db.get(DB_KEYS.orders, defaultOrders),
         start,
