@@ -2585,7 +2585,7 @@
             </div>
             <div class="panel" style="margin-top:20px;">
               <h3>Recent Orders</h3>
-              ${orderHistory.length ? `<table class="data-table" style="margin-top:14px;"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>${orderHistory.slice(0,5).map(order => `<tr><td>${order.id}</td><td>${order.date}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td><td>${formatMoney(order.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state" style="margin-top:14px;">No orders yet.</div>'}
+              ${orderHistory.length ? `<table class="data-table" style="margin-top:14px;"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>${orderHistory.slice(0,5).map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state" style="margin-top:14px;">No orders yet.</div>'}
             </div>
           </div>
         `;
@@ -2668,7 +2668,7 @@
       root.innerHTML = `
         <div class="page-box">
           <h2>My Orders</h2>
-          ${orders.length ? `<table class="data-table"><thead><tr><th>Order ID</th><th>Date</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>${orders.map(order => `<tr><td>${order.id}</td><td>${order.date}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td><td>${formatMoney(order.amount)}</td><td><button class="btn btn-small btn-dark" onclick="viewOrderDetails('${order.id}')">View</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No previous orders found.</div>'}
+          ${orders.length ? `<table class="data-table"><thead><tr><th>Order ID</th><th>Date</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>${orders.map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td><td><button class="btn btn-small btn-dark" onclick="viewOrderDetails('${order.id}')">View</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No previous orders found.</div>'}
         </div>
       `;
     }
@@ -2680,18 +2680,18 @@
         <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <h2>Order Details</h2>
         <div style="margin-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
-          <div class="field-group"><label>Order ID</label><input value="${order.id}" readonly /></div>
-          <div class="field-group"><label>Date</label><input value="${order.date}" readonly /></div>
-          <div class="field-group"><label>Customer</label><input value="${order.customer}" readonly /></div>
-          <div class="field-group"><label>Phone</label><input value="${order.phone || ''}" readonly /></div>
-          <div class="field-group"><label>Address</label><input value="${order.address || ''}" readonly /></div>
-          <div class="field-group"><label>Status</label><input value="${order.status}" readonly /></div>
-          <div class="field-group"><label>Payment</label><input value="${order.payment || ''}" readonly /></div>
+          <div class="field-group"><label>Order ID</label><input value="${escapeIntegrationValue(order.id)}" readonly /></div>
+          <div class="field-group"><label>Date</label><input value="${escapeIntegrationValue(order.date)}" readonly /></div>
+          <div class="field-group"><label>Customer</label><input value="${escapeIntegrationValue(order.customer)}" readonly /></div>
+          <div class="field-group"><label>Phone</label><input value="${escapeIntegrationValue(order.phone || '')}" readonly /></div>
+          <div class="field-group"><label>Address</label><input value="${escapeIntegrationValue(order.address || '')}" readonly /></div>
+          <div class="field-group"><label>Status</label><input value="${escapeIntegrationValue(order.status)}" readonly /></div>
+          <div class="field-group"><label>Payment</label><input value="${escapeIntegrationValue(order.payment || '')}" readonly /></div>
           <div class="field-group"><label>Total</label><input value="${formatMoney(order.amount)}" readonly /></div>
         </div>
         <div style="margin-top:16px;">
           <h3>Products</h3>
-          ${order.products ? order.products.map(prod => `<div class="summary-line"><span>${prod.name} x ${prod.qty}</span><span>${formatMoney(prod.price * prod.qty)}</span></div>`).join('') : ''}
+          ${order.products ? order.products.map(prod => `<div class="summary-line"><span>${escapeIntegrationValue(prod.name)} x ${Number(prod.qty) || 0}</span><span>${formatMoney(prod.price * prod.qty)}</span></div>`).join('') : ''}
         </div>
         <button class="btn btn-primary" style="margin-top:18px;" onclick="openInvoice('${order.id}')">Print Invoice</button>
       `);
@@ -2998,9 +2998,9 @@
                 ${orders.slice(0, 5).map(order => `
                   <tr>
                     <td>${order.id}</td>
-                    <td>${order.customer}</td>
+                    <td>${escapeIntegrationValue(order.customer)}</td>
                     <td>${formatMoney(order.amount)}</td>
-                    <td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td>
+                    <td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -3558,13 +3558,13 @@
             <tbody>
               ${orders.map(order => `
                 <tr>
-                  <td>${order.id}</td>
-                  <td>${order.customer}</td>
-                  <td>${order.phone || 'N/A'}</td>
-                  <td>${order.date}</td>
+                  <td>${escapeIntegrationValue(order.id)}</td>
+                  <td>${escapeIntegrationValue(order.customer)}</td>
+                  <td>${escapeIntegrationValue(order.phone || 'N/A')}</td>
+                  <td>${escapeIntegrationValue(order.date)}</td>
                   <td>${order.items || 0}</td>
                   <td>${formatMoney(order.amount)}</td>
-                  <td><span class="status-pill status-${String(order.status).toLowerCase()}">${order.status}</span></td>
+                  <td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td>
                   <td><div class="cell-actions"><button class="icon-action view" onclick="viewAdminOrder('${order.id}')"><i class="fa-solid fa-eye"></i></button><button class="icon-action edit" onclick="changeOrderStatusDialog('${order.id}')"><i class="fa-solid fa-pen"></i></button></div></td>
                 </tr>
               `).join('')}
@@ -3608,14 +3608,14 @@
         <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
         <h2>Order Details</h2>
         <div class="form-grid" style="margin-top:16px;">
-          <div class="field-group"><label>Order ID</label><input value="${order.id}" readonly /></div>
-          <div class="field-group"><label>Customer</label><input value="${order.customer}" readonly /></div>
-          <div class="field-group"><label>Phone</label><input value="${order.phone || ''}" readonly /></div>
-          <div class="field-group"><label>Date</label><input value="${order.date}" readonly /></div>
-          <div class="field-group"><label>Payment</label><input value="${order.payment || ''}" readonly /></div>
-          <div class="field-group"><label>Payment Status</label><input value="${order.paymentStatus || 'Pending manual confirmation'}" readonly /></div>
-          <div class="field-group"><label>Order Status</label><input value="${order.status || 'Pending'}" readonly /></div>
-          <div class="field-group" style="grid-column:1/-1;"><label>Address</label><input value="${order.address || ''}" readonly /></div>
+          <div class="field-group"><label>Order ID</label><input value="${escapeIntegrationValue(order.id)}" readonly /></div>
+          <div class="field-group"><label>Customer</label><input value="${escapeIntegrationValue(order.customer)}" readonly /></div>
+          <div class="field-group"><label>Phone</label><input value="${escapeIntegrationValue(order.phone || '')}" readonly /></div>
+          <div class="field-group"><label>Date</label><input value="${escapeIntegrationValue(order.date)}" readonly /></div>
+          <div class="field-group"><label>Payment</label><input value="${escapeIntegrationValue(order.payment || '')}" readonly /></div>
+          <div class="field-group"><label>Payment Status</label><input value="${escapeIntegrationValue(order.paymentStatus || 'Pending manual confirmation')}" readonly /></div>
+          <div class="field-group"><label>Order Status</label><input value="${escapeIntegrationValue(order.status || 'Pending')}" readonly /></div>
+          <div class="field-group" style="grid-column:1/-1;"><label>Address</label><input value="${escapeIntegrationValue(order.address || '')}" readonly /></div>
           <div class="field-group"><label>Subtotal</label><input value="${formatMoney(order.subtotal || order.amount)}" readonly /></div>
           <div class="field-group"><label>Delivery</label><input value="${formatMoney(order.delivery || 0)}" readonly /></div>
           <div class="field-group"><label>Tax</label><input value="${formatMoney(order.tax || 0)}" readonly /></div>
@@ -4817,19 +4817,19 @@
           <p>Phone: ${getSettings().phone}</p>
           <p>Email: ${getSettings().email}</p>
           <hr />
-          <p><strong>Order ID:</strong> ${order.id}</p>
-          <p><strong>Date:</strong> ${order.date}</p>
-          <p><strong>Customer:</strong> ${order.customer}</p>
-          <p><strong>Address:</strong> ${order.address}</p>
+          <p><strong>Order ID:</strong> ${escapeIntegrationValue(order.id)}</p>
+          <p><strong>Date:</strong> ${escapeIntegrationValue(order.date)}</p>
+          <p><strong>Customer:</strong> ${escapeIntegrationValue(order.customer)}</p>
+          <p><strong>Address:</strong> ${escapeIntegrationValue(order.address)}</p>
           <table>
             <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
-            ${(order.products || []).map(p => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${formatMoney(p.price)}</td></tr>`).join('')}
+            ${(order.products || []).map(p => `<tr><td>${escapeIntegrationValue(p.name)}</td><td>${Number(p.qty) || 0}</td><td>${formatMoney(p.price)}</td></tr>`).join('')}
           </table>
           <p><strong>Subtotal:</strong> ${formatMoney(order.subtotal || order.amount)}</p>
           <p><strong>Delivery:</strong> ${formatMoney(order.delivery || 0)}</p>
           <p><strong>Tax:</strong> ${formatMoney(order.tax || 0)}</p>
           <p><strong>Grand Total:</strong> ${formatMoney(order.amount)}</p>
-          <p><strong>Payment Method:</strong> ${order.payment}</p>
+          <p><strong>Payment Method:</strong> ${escapeIntegrationValue(order.payment)}</p>
         </body></html>
       `;
       const win = window.open('', '_blank');
