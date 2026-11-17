@@ -249,10 +249,11 @@
       left: 0;
       right: 0;
       top: calc(100% + 8px);
+      max-height: min(60vh, 360px);
       background: var(--white);
       border-radius: 8px;
       box-shadow: var(--shadow);
-      overflow: hidden;
+      overflow-y: auto;
       z-index: 30;
       display: none;
     }
@@ -261,8 +262,14 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      width: 100%;
       padding: 10px 12px;
+      border: 0;
       border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
       cursor: pointer;
     }
     .search-item:hover { background: #f8fafc; }
@@ -296,13 +303,13 @@
       position: absolute;
       top: -8px;
       right: -10px;
-      min-width: 18px;
-      height: 18px;
-      padding: 2px 4px;
+      min-width: 24px;
+      height: 24px;
+      padding: 2px 6px;
       border-radius: 999px;
       background: var(--primary);
       color: #111827;
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -509,12 +516,15 @@
       gap: 18px;
     }
     .category-card {
+      width: 100%;
       background: var(--white);
       border: 1px solid var(--line);
       border-radius: 12px;
       box-shadow: var(--shadow);
       text-align: center;
       padding: 18px 14px;
+      font: inherit;
+      color: inherit;
       transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
       cursor: pointer;
       background-image: linear-gradient(120deg, rgba(255,255,255,0.2), rgba(255,255,255,0.9), rgba(255,255,255,0.2));
@@ -574,6 +584,39 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       gap: 18px;
+    }
+    .product-pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .product-pagination button {
+      min-width: 40px;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--text);
+      font-weight: 700;
+    }
+    .product-pagination button[aria-current="page"] {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #111827;
+    }
+    .product-pagination button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+    .store-info-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
     }
     .product-card {
       background: var(--white);
@@ -1146,14 +1189,46 @@
       .summary-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
-      .search-wrap { max-width: none; width: 100%; }
+      .store-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 12px;
+      }
+      .brand { min-width: 0; }
+      .search-wrap {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        max-width: none;
+        min-width: 0;
+        width: 100%;
+      }
+      .store-actions {
+        grid-column: 2;
+        grid-row: 1;
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
+      .icon-btn { width: 36px; height: 40px; }
       .header-phone { display: none; }
-      .nav-bar { padding-top: 8px; padding-bottom: 8px; }
-      .all-cats-btn { width: 100%; }
-      .nav-links { width: 100%; justify-content: space-between; gap: 10px 18px; }
+      .nav-bar {
+        padding: 8px 14px;
+        justify-content: stretch;
+        flex-wrap: wrap;
+        overflow: visible;
+      }
+      .all-cats-btn { width: 100%; flex: 1 0 100%; white-space: nowrap; }
+      .nav-links {
+        width: 100%;
+        flex: 1 0 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px 16px;
+      }
+      .nav-links li { flex: 0 0 auto; }
+      .nav-links a { font-size: 12px; }
       .feature-row { grid-template-columns: 1fr; }
       .category-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-      .product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .product-grid { grid-template-columns: minmax(0,1fr); }
       .admin-shell { display: block; }
       .admin-sidebar { width: 100%; }
       .admin-content { padding: 18px 16px; }
@@ -1165,7 +1240,6 @@
       .content-section { margin-left: 14px; margin-right: 14px; }
     }
     @media (max-width: 540px) {
-      .product-grid { grid-template-columns: 1fr; }
       .hero-copy { padding: 30px 20px; }
       .store-header { padding: 14px 14px; }
       .brand-name { font-size: 16px; }
@@ -1231,14 +1305,14 @@
     </header>
 
     <nav class="nav-bar">
-      <button class="all-cats-btn" onclick="currentFilters.category=''; renderStoreHome();"><i class="fa-solid fa-bars"></i> All Categories</button>
+      <button class="all-cats-btn" onclick="showAllProducts()"><i class="fa-solid fa-bars"></i> All Categories</button>
       <ul class="nav-links">
         <li><a href="#" class="active" onclick="renderStoreHome(); return false;">Home</a></li>
-        <li><a href="#" onclick="renderShopPage(); return false;">Shop</a></li>
-        <li><a href="#" onclick="currentFilters.category='Drinks'; renderShopPage(); return false;">Categories</a></li>
-        <li><a href="#" onclick="return false;">About Us</a></li>
-        <li><a href="#" onclick="return false;">Contact Us</a></li>
-        <li><a href="#" class="nav-hot" onclick="currentFilters.category=''; currentFilters.sort='discount'; renderShopPage(); return false;">Hot Deals</a></li>
+        <li><a href="#" onclick="state.filters.page = 1; renderShopPage(); return false;">Shop</a></li>
+        <li><a href="#" onclick="renderCategoriesPage(); return false;">Categories</a></li>
+        <li><a href="#" onclick="renderStoreInfoPage('about'); return false;">About Us</a></li>
+        <li><a href="#" onclick="renderStoreInfoPage('contact'); return false;">Contact Us</a></li>
+        <li><a href="#" class="nav-hot" onclick="showHotDeals(); return false;">Hot Deals</a></li>
       </ul>
     </nav>
 
@@ -1623,7 +1697,8 @@
     ];
 
     const state = {
-      filters: { search: '', category: '', sort: 'default', price: 'all', discount: false },
+      filters: { search: '', category: '', sort: 'default', price: 'all', discount: false, page: 1 },
+      currentStorePage: 'home',
       currentTab: 'dashboard',
       currentProductId: null,
       currentOrderId: null,
@@ -1971,23 +2046,173 @@
         products = products.filter(item => item.price >= min && item.price <= max);
       }
       if (state.filters.discount) {
-        products = products.filter(item => Number(item.discount) > 0);
+        products = products.filter(item => getProductDiscountPercentage(item) > 0);
       }
       switch (state.filters.sort) {
         case 'price-asc': products.sort((a, b) => a.price - b.price); break;
         case 'price-desc': products.sort((a, b) => b.price - a.price); break;
         case 'rating': products.sort((a, b) => b.rating - a.rating); break;
         case 'newest': products.sort((a, b) => (b.newest ? 1 : 0) - (a.newest ? 1 : 0) || (b.id.localeCompare(a.id))); break;
-        case 'discount': products.sort((a, b) => Number(b.discount) - Number(a.discount)); break;
+        case 'discount': products.sort((a, b) => getProductDiscountPercentage(b) - getProductDiscountPercentage(a)); break;
         default: break;
       }
       return products;
     }
 
-    function renderStoreHome() {
-      const root = document.getElementById('store-content');
+    function getProductDiscountPercentage(product) {
+      const discount = Number(product.discount) || 0;
+      if (discount > 0) return discount;
+      const oldPrice = Number(product.oldPrice) || 0;
+      const price = Number(product.price) || 0;
+      return oldPrice > price ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0;
+    }
+
+    function getStoreCategories() {
       const categories = db.get(DB_KEYS.categories, defaultCategories);
+      return Array.isArray(categories) && categories.length ? categories : defaultCategories;
+    }
+
+    function setStoreFilter(filter, value) {
+      state.filters[filter] = value;
+      state.filters.page = 1;
+      renderShopPage();
+    }
+
+    function showAllProducts() {
+      state.filters.category = '';
+      state.filters.search = '';
+      state.filters.price = 'all';
+      state.filters.discount = false;
+      state.filters.sort = 'default';
+      state.filters.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('searchResults').classList.remove('visible');
+      renderShopPage();
+    }
+
+    function showHotDeals() {
+      state.filters.category = '';
+      state.filters.search = '';
+      state.filters.discount = true;
+      state.filters.sort = 'discount';
+      state.filters.price = 'all';
+      state.filters.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('searchResults').classList.remove('visible');
+      renderShopPage();
+    }
+
+    function selectStoreCategory(category) {
+      state.filters.category = category;
+      state.filters.search = '';
+      state.filters.price = 'all';
+      state.filters.discount = false;
+      state.filters.page = 1;
+      document.getElementById('searchInput').value = '';
+      document.getElementById('searchResults').classList.remove('visible');
+      renderShopPage();
+    }
+
+    function renderCategoriesPage() {
+      state.currentStorePage = 'categories';
+      const categories = getStoreCategories();
+      const root = document.getElementById('store-content');
+      root.innerHTML = `
+        <div class="page-box">
+          <div class="section-head"><h3>Categories</h3></div>
+          <div class="category-grid">
+            ${categories.map(category => `
+              <button class="category-card" type="button" data-category-name="${escapeIntegrationValue(category.name)}">
+                <img src="${escapeIntegrationValue(category.image)}" alt="${escapeIntegrationValue(category.name)}" />
+                <h5>${escapeIntegrationValue(category.name)}</h5>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      root.querySelectorAll('[data-category-name]').forEach(card => {
+        card.addEventListener('click', () => selectStoreCategory(card.dataset.categoryName));
+      });
+    }
+
+    function renderStoreInfoPage(page) {
+      state.currentStorePage = page;
+      const root = document.getElementById('store-content');
+      const settings = getSettings();
+      if (page === 'about') {
+        root.innerHTML = `
+          <div class="page-box">
+            <h2>About Us</h2>
+            <p>${escapeIntegrationValue(settings.storeDescription || defaultSettings.storeDescription)}</p>
+            <p style="margin-top:12px;">DOJIYE STORE waxay qoysaska u keentaa alaab maalinle ah hal meel.</p>
+            <button class="btn btn-primary" style="margin-top:18px;" onclick="renderShopPage()">Shop Now</button>
+          </div>
+        `;
+        return;
+      }
+
+      const digits = String(settings.phone || defaultSettings.phone).replace(/\D/g, '');
+      const whatsappDigits = digits.startsWith('0') ? `251${digits.slice(1)}` : digits;
+      root.innerHTML = `
+        <div class="page-box">
+          <h2>Contact Us</h2>
+          <p>Waxaad nagala soo xiriiri kartaa telefoon ama email.</p>
+          <div class="store-info-links">
+            <a class="btn btn-primary" href="tel:${digits}"><i class="fa-solid fa-phone"></i> ${escapeIntegrationValue(settings.phone || defaultSettings.phone)}</a>
+            <a class="btn btn-success" href="https://wa.me/${whatsappDigits}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+            <a class="btn btn-light" href="mailto:${escapeIntegrationValue(settings.email || defaultSettings.email)}"><i class="fa-solid fa-envelope"></i> ${escapeIntegrationValue(settings.email || defaultSettings.email)}</a>
+          </div>
+          <p style="margin-top:16px;">${escapeIntegrationValue(settings.city || defaultSettings.city)}</p>
+        </div>
+      `;
+    }
+
+    function getPagedProducts(products) {
+      const isMobile = window.matchMedia('(max-width: 760px)').matches;
+      const pageSize = isMobile ? 5 : Math.max(products.length, 1);
+      const pageCount = Math.ceil(products.length / pageSize);
+      const page = Math.min(Math.max(1, Number(state.filters.page) || 1), Math.max(pageCount, 1));
+      state.filters.page = page;
+      const start = (page - 1) * pageSize;
+      return {
+        items: products.slice(start, start + pageSize),
+        page,
+        pageCount
+      };
+    }
+
+    function renderProductPagination(page, pageCount, view) {
+      if (pageCount <= 1) return '';
+      const firstPage = Math.max(1, Math.min(page - 2, pageCount - 4));
+      const lastPage = Math.min(pageCount, firstPage + 4);
+      const pageButtons = [];
+      for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber += 1) {
+        pageButtons.push(`<button type="button" ${pageNumber === page ? 'aria-current="page"' : ''} onclick="goToProductPage(${pageNumber}, '${view}')">${pageNumber}</button>`);
+      }
+      return `
+        <nav class="product-pagination" aria-label="Product pages">
+          <button type="button" ${page === 1 ? 'disabled' : ''} onclick="goToProductPage(${page - 1}, '${view}')">Previous</button>
+          ${pageButtons.join('')}
+          <button type="button" ${page === pageCount ? 'disabled' : ''} onclick="goToProductPage(${page + 1}, '${view}')">Next</button>
+        </nav>
+      `;
+    }
+
+    function goToProductPage(page, view) {
+      state.filters.page = page;
+      if (view === 'home') renderStoreHome();
+      else renderShopPage();
+      document.getElementById(view === 'home' ? 'home-product-grid' : 'shop-product-grid')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderStoreHome() {
+      state.currentStorePage = 'home';
+      const root = document.getElementById('store-content');
+      const categories = getStoreCategories();
+      const homeCategories = categories.slice(0, 6);
       const products = getFilteredProducts();
+      const pagedProducts = getPagedProducts(products.slice(0, 12));
       let html = `
         <section class="hero">
           <div class="hero-copy">
@@ -2024,14 +2249,14 @@
         <section class="content-section">
           <div class="section-head">
             <h3>Categories</h3>
-            <a href="#" onclick="renderShopPage(); return false;">View All</a>
+            <a href="#" onclick="renderCategoriesPage(); return false;">View All</a>
           </div>
           <div class="category-grid">
-            ${categories.map(cat => `
-              <div class="category-card" onclick="state.filters.category='${cat.name}'; renderShopPage();">
-                <img src="${cat.image}" alt="${cat.name}" />
-                <h5>${cat.name}</h5>
-              </div>
+            ${homeCategories.map(cat => `
+              <button class="category-card" type="button" data-category-name="${escapeIntegrationValue(cat.name)}">
+                <img src="${escapeIntegrationValue(cat.image)}" alt="${escapeIntegrationValue(cat.name)}" />
+                <h5>${escapeIntegrationValue(cat.name)}</h5>
+              </button>
             `).join('')}
           </div>
         </section>
@@ -2039,17 +2264,17 @@
         <section class="content-section">
           <div class="section-head">
             <h3>Featured Products</h3>
-            <a href="#" onclick="renderShopPage(); return false;">View All</a>
+            <a href="#" onclick="state.filters.page = 1; renderShopPage(); return false;">View All</a>
           </div>
           <div class="product-toolbar">
             <div class="toolbar-field">
-              <select id="homeCategoryFilter" onchange="state.filters.category = this.value; renderShopPage();">
+              <select id="homeCategoryFilter" onchange="setStoreFilter('category', this.value)">
                 <option value="">All Categories</option>
-                ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
+                ${categories.map(cat => `<option value="${escapeIntegrationValue(cat.name)}">${escapeIntegrationValue(cat.name)}</option>`).join('')}
               </select>
             </div>
             <div class="toolbar-field">
-              <select id="homeSortFilter" onchange="state.filters.sort = this.value; renderShopPage();">
+              <select id="homeSortFilter" onchange="setStoreFilter('sort', this.value)">
                 <option value="default">Default</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
@@ -2058,14 +2283,18 @@
                 <option value="discount">Biggest Discount</option>
               </select>
             </div>
-            <label class="toolbar-toggle"><input type="checkbox" id="discountToggle" onchange="state.filters.discount = this.checked; renderShopPage();" /> Discount only</label>
+            <label class="toolbar-toggle"><input type="checkbox" id="discountToggle" onchange="setStoreFilter('discount', this.checked)" /> Discount only</label>
           </div>
-          <div class="product-grid">
-            ${products.length ? products.slice(0, 12).map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products match your search.</div>`}
+          <div class="product-grid" id="home-product-grid">
+            ${products.length ? pagedProducts.items.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products match your search.</div>`}
           </div>
+          ${renderProductPagination(pagedProducts.page, pagedProducts.pageCount, 'home')}
         </section>
       `;
       root.innerHTML = html;
+      root.querySelectorAll('[data-category-name]').forEach(card => {
+        card.addEventListener('click', () => selectStoreCategory(card.dataset.categoryName));
+      });
       document.getElementById('homeCategoryFilter').value = state.filters.category || '';
       document.getElementById('homeSortFilter').value = state.filters.sort || 'default';
       document.getElementById('discountToggle').checked = !!state.filters.discount;
@@ -2073,9 +2302,11 @@
     }
 
     function renderShopPage() {
+      state.currentStorePage = 'shop';
       const root = document.getElementById('store-content');
-      const categories = db.get(DB_KEYS.categories, defaultCategories);
+      const categories = getStoreCategories();
       const products = getFilteredProducts();
+      const pagedProducts = getPagedProducts(products);
       root.innerHTML = `
         <div class="page-box">
           <div class="section-head" style="margin-bottom:18px;">
@@ -2084,13 +2315,13 @@
           </div>
           <div class="product-toolbar">
             <div class="toolbar-field">
-              <select id="shopCategoryFilter" onchange="state.filters.category = this.value; renderShopPage();">
+              <select id="shopCategoryFilter" onchange="setStoreFilter('category', this.value)">
                 <option value="">All Categories</option>
-                ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
+                ${categories.map(cat => `<option value="${escapeIntegrationValue(cat.name)}">${escapeIntegrationValue(cat.name)}</option>`).join('')}
               </select>
             </div>
             <div class="toolbar-field">
-              <select id="shopPriceFilter" onchange="state.filters.price = this.value; renderShopPage();">
+              <select id="shopPriceFilter" onchange="setStoreFilter('price', this.value)">
                 <option value="all">Any price</option>
                 <option value="0-100">Under 100 ETB</option>
                 <option value="100-250">100 - 250 ETB</option>
@@ -2099,7 +2330,7 @@
               </select>
             </div>
             <div class="toolbar-field">
-              <select id="shopSortFilter" onchange="state.filters.sort = this.value; renderShopPage();">
+              <select id="shopSortFilter" onchange="setStoreFilter('sort', this.value)">
                 <option value="default">Default</option>
                 <option value="price-asc">Price Low to High</option>
                 <option value="price-desc">Price High to Low</option>
@@ -2108,12 +2339,13 @@
                 <option value="discount">Biggest Discount</option>
               </select>
             </div>
-            <label class="toolbar-toggle"><input type="checkbox" id="shopDiscountOnly" onchange="state.filters.discount = this.checked; renderShopPage();" /> Discount only</label>
+            <label class="toolbar-toggle"><input type="checkbox" id="shopDiscountOnly" onchange="setStoreFilter('discount', this.checked)" /> Discount only</label>
           </div>
 
-          <div class="product-grid">
-            ${products.length ? products.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products found.</div>`}
+          <div class="product-grid" id="shop-product-grid">
+            ${products.length ? pagedProducts.items.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products found.</div>`}
           </div>
+          ${renderProductPagination(pagedProducts.page, pagedProducts.pageCount, 'shop')}
         </div>
       `;
       document.getElementById('shopCategoryFilter').value = state.filters.category || '';
@@ -2126,12 +2358,13 @@
     function renderProductCard(product) {
       const wishlist = db.get(DB_KEYS.wishlist, []);
       const isFav = wishlist.includes(product.id);
+      const discountPercentage = getProductDiscountPercentage(product);
       const stockState = product.stock <= getSettings().lowStockThreshold ? (product.stock === 0 ? 'danger' : 'warning') : 'normal';
       const stockText = product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? `Low stock (${product.stock})` : `In stock (${product.stock})`;
       const externalStock = getExternalInventoryForProduct(product);
       return `
         <article class="product-card">
-          ${Number(product.discount) > 0 ? `<span class="product-badge">-${product.discount}%</span>` : ''}
+          ${discountPercentage > 0 ? `<span class="product-badge">-${discountPercentage}%</span>` : ''}
           <button class="wishlist-btn ${isFav ? 'active' : ''}" onclick="toggleWishlist('${product.id}', event)"><i class="fa-solid fa-heart"></i></button>
           <img class="product-image" src="${product.image}" alt="${product.name}" onclick="openProductModal('${product.id}')" />
           <div class="product-body">
@@ -2812,7 +3045,14 @@
 
     function applySearch() {
       state.filters.search = document.getElementById('searchInput').value.trim();
-      renderStoreHome();
+      state.filters.category = '';
+      state.filters.price = 'all';
+      state.filters.discount = false;
+      state.filters.page = 1;
+      const suggestions = document.getElementById('searchResults');
+      suggestions.classList.remove('visible');
+      suggestions.innerHTML = '';
+      renderShopPage();
     }
 
     function handleSearchInput() {
@@ -2822,24 +3062,48 @@
       if (!value) {
         suggestions.classList.remove('visible');
         suggestions.innerHTML = '';
-        renderStoreHome();
+        state.filters.search = '';
+        state.filters.page = 1;
+        if (state.currentStorePage === 'shop') renderShopPage();
+        else renderStoreHome();
         return;
       }
-      const matches = db.get(DB_KEYS.products, defaultProducts).filter(product => [product.name, product.category, product.sku, product.description].join(' ').toLowerCase().includes(value.toLowerCase())).slice(0, 6);
+      const query = value.toLowerCase();
+      const matches = sortProductsByCatalogNumber(db.get(DB_KEYS.products, defaultProducts))
+        .filter(product => product.status !== 'Hidden')
+        .filter(product => [product.name, product.category, product.sku, product.description]
+          .join(' ')
+          .toLowerCase()
+          .includes(query))
+        .slice(0, 6);
       if (!matches.length) {
         suggestions.innerHTML = '<div class="search-item"><span>No products found</span></div>';
         suggestions.classList.add('visible');
         return;
       }
       suggestions.innerHTML = matches.map(item => `
-        <div class="search-item" onclick="document.getElementById('searchInput').value='${item.name}'; state.filters.search='${item.name}'; renderStoreHome(); document.getElementById('searchResults').classList.remove('visible');">
-          <img src="${item.image}" alt="${item.name}" />
+        <button type="button" class="search-item" data-search-product-id="${escapeIntegrationValue(item.id)}">
+          <img src="${escapeIntegrationValue(item.image)}" alt="${escapeIntegrationValue(item.name)}" />
           <div>
-            <div style="font-weight:700;">${item.name}</div>
-            <small>${item.category} • ${formatMoney(item.price)}</small>
+            <div style="font-weight:700;">${escapeIntegrationValue(item.name)}</div>
+            <small>${escapeIntegrationValue(item.category)} • ${formatMoney(item.price)}</small>
           </div>
-        </div>
+        </button>
       `).join('');
+      suggestions.querySelectorAll('[data-search-product-id]').forEach(button => {
+        button.addEventListener('click', () => {
+          const product = db.get(DB_KEYS.products, defaultProducts)
+            .find(item => item.id === button.dataset.searchProductId);
+          if (!product) {
+            showToast('Alaabta lama helin. Dib u raadi.', 'warning');
+            return;
+          }
+          document.getElementById('searchInput').value = product.name;
+          state.filters.search = product.name;
+          state.filters.page = 1;
+          applySearch();
+        });
+      });
       suggestions.classList.add('visible');
     }
 
@@ -4848,7 +5112,7 @@
         el.classList.remove('reveal-item');
         void el.offsetWidth;
         el.classList.add('reveal-item');
-        el.style.animationDelay = `${index * 60}ms`;
+        el.style.animationDelay = `${(index % 8) * 35}ms`;
       });
     }
 
@@ -4903,7 +5167,22 @@
       applyBranding();
       setupPageAccess();
       updateBadges();
-      document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', handleSearchInput);
+      searchInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          applySearch();
+        }
+      });
+      let storeResizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(storeResizeTimer);
+        storeResizeTimer = setTimeout(() => {
+          if (state.currentStorePage === 'shop') renderShopPage();
+          else if (state.currentStorePage === 'home') renderStoreHome();
+        }, 180);
+      });
       attachMotionObserver();
       if (adminPage && isSupabaseAdmin) renderAdminDashboard();
       else {
