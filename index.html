@@ -585,33 +585,6 @@
       grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       gap: 18px;
     }
-    .product-pagination {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 20px;
-    }
-    .product-pagination button {
-      min-width: 40px;
-      min-height: 40px;
-      padding: 8px 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--white);
-      color: var(--text);
-      font-weight: 700;
-    }
-    .product-pagination button[aria-current="page"] {
-      border-color: var(--primary);
-      background: var(--primary);
-      color: #111827;
-    }
-    .product-pagination button:disabled {
-      cursor: not-allowed;
-      opacity: 0.45;
-    }
     .store-info-links {
       display: flex;
       flex-wrap: wrap;
@@ -631,18 +604,6 @@
     .product-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 16px 30px rgba(15,23,42,0.12);
-    }
-    .product-badge {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      background: var(--danger);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 5px 8px;
-      border-radius: 999px;
-      z-index: 2;
     }
     .wishlist-btn {
       position: absolute;
@@ -700,11 +661,6 @@
       font-size: 22px;
       font-weight: 800;
       color: var(--text);
-    }
-    .price-old {
-      color: var(--muted);
-      font-size: 13px;
-      text-decoration: line-through;
     }
     .stock-line {
       margin-bottom: 12px;
@@ -1236,16 +1192,6 @@
       .product-card { min-width: 0; border-radius: 8px; }
       .product-image { height: 76px; object-fit: cover; }
       .wishlist-btn { top: 4px; right: 4px; width: 22px; height: 22px; font-size: 11px; }
-      .product-badge {
-        top: 4px;
-        left: 4px;
-        max-width: calc(100% - 30px);
-        padding: 3px 4px;
-        overflow: hidden;
-        font-size: 8px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
       .product-body { min-width: 0; padding: 5px; }
       .product-meta,
       .rating-row,
@@ -1262,15 +1208,13 @@
         -webkit-box-orient: vertical;
       }
       .price-row { display: block; margin: 3px 0 0; line-height: 1.1; }
-      .price-current,
-      .price-old {
+      .price-current {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       .price-current { font-size: 9px; }
-      .price-old { margin-top: 2px; font-size: 8px; }
       .admin-shell { display: block; }
       .admin-sidebar { width: 100%; }
       .admin-content { padding: 18px 16px; }
@@ -1350,7 +1294,7 @@
       <button class="all-cats-btn" onclick="showAllProducts()"><i class="fa-solid fa-bars"></i> All Categories</button>
       <ul class="nav-links">
         <li><a href="#" class="active" onclick="renderStoreHome(); return false;">Home</a></li>
-        <li><a href="#" onclick="state.filters.page = 1; renderShopPage(); return false;">Shop</a></li>
+        <li><a href="#" onclick="renderShopPage(); return false;">Shop</a></li>
         <li><a href="#" onclick="renderCategoriesPage(); return false;">Categories</a></li>
         <li><a href="#" onclick="renderStoreInfoPage('about'); return false;">About Us</a></li>
         <li><a href="#" onclick="renderStoreInfoPage('contact'); return false;">Contact Us</a></li>
@@ -1739,7 +1683,7 @@
     ];
 
     const state = {
-      filters: { search: '', category: '', sort: 'default', price: 'all', discount: false, page: 1 },
+      filters: { search: '', category: '', sort: 'default', price: 'all', discount: false },
       currentStorePage: 'home',
       currentTab: 'dashboard',
       currentProductId: null,
@@ -2116,7 +2060,6 @@
 
     function setStoreFilter(filter, value) {
       state.filters[filter] = value;
-      state.filters.page = 1;
       renderShopPage();
     }
 
@@ -2126,7 +2069,6 @@
       state.filters.price = 'all';
       state.filters.discount = false;
       state.filters.sort = 'default';
-      state.filters.page = 1;
       document.getElementById('searchInput').value = '';
       document.getElementById('searchResults').classList.remove('visible');
       renderShopPage();
@@ -2138,7 +2080,6 @@
       state.filters.discount = true;
       state.filters.sort = 'discount';
       state.filters.price = 'all';
-      state.filters.page = 1;
       document.getElementById('searchInput').value = '';
       document.getElementById('searchResults').classList.remove('visible');
       renderShopPage();
@@ -2149,7 +2090,6 @@
       state.filters.search = '';
       state.filters.price = 'all';
       state.filters.discount = false;
-      state.filters.page = 1;
       document.getElementById('searchInput').value = '';
       document.getElementById('searchResults').classList.remove('visible');
       renderShopPage();
@@ -2209,58 +2149,9 @@
       `;
     }
 
-    function getPagedProducts(products) {
-      const isMobile = window.matchMedia('(max-width: 760px)').matches;
-      const pageSize = isMobile ? 5 : Math.max(products.length, 1);
-      const pageCount = Math.ceil(products.length / pageSize);
-      const page = Math.min(Math.max(1, Number(state.filters.page) || 1), Math.max(pageCount, 1));
-      state.filters.page = page;
-      const end = isMobile ? page * pageSize : pageSize;
-      return {
-        items: products.slice(0, end),
-        page,
-        pageCount
-      };
-    }
-
     function getDeliveryFee(subtotal, settings) {
       if (subtotal >= 5000) return 0;
       return Number(settings.deliveryFee || 0);
-    }
-
-    function renderProductPagination(page, pageCount, view) {
-      if (window.matchMedia('(max-width: 760px)').matches) return '';
-      if (pageCount <= 1) return '';
-      const firstPage = Math.max(1, Math.min(page - 2, pageCount - 4));
-      const lastPage = Math.min(pageCount, firstPage + 4);
-      const pageButtons = [];
-      for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber += 1) {
-        pageButtons.push(`<button type="button" ${pageNumber === page ? 'aria-current="page"' : ''} onclick="goToProductPage(${pageNumber}, '${view}')">${pageNumber}</button>`);
-      }
-      return `
-        <nav class="product-pagination" aria-label="Product pages">
-          ${pageButtons.join('')}
-        </nav>
-      `;
-    }
-
-    function goToProductPage(page, view) {
-      state.filters.page = page;
-      if (view === 'home') renderStoreHome();
-      else renderShopPage();
-      document.getElementById(view === 'home' ? 'home-product-grid' : 'shop-product-grid')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function loadNextMobileProductPage() {
-      if (!window.matchMedia('(max-width: 760px)').matches) return;
-      if (!['home', 'shop'].includes(state.currentStorePage)) return;
-      const products = getFilteredProducts();
-      const pageCount = Math.ceil(products.length / 5);
-      if ((Number(state.filters.page) || 1) >= pageCount) return;
-      state.filters.page = (Number(state.filters.page) || 1) + 1;
-      if (state.currentStorePage === 'home') renderStoreHome();
-      else renderShopPage();
     }
 
     function renderStoreHome() {
@@ -2269,8 +2160,6 @@
       const categories = getStoreCategories();
       const homeCategories = categories.slice(0, 6);
       const products = getFilteredProducts();
-      const homeProducts = window.matchMedia('(max-width: 760px)').matches ? products : products.slice(0, 12);
-      const pagedProducts = getPagedProducts(homeProducts);
       let html = `
         <section class="hero">
           <div class="hero-copy">
@@ -2342,9 +2231,8 @@
             <label class="toolbar-toggle"><input type="checkbox" id="discountToggle" onchange="setStoreFilter('discount', this.checked)" /> Discount only</label>
           </div>
           <div class="product-grid" id="home-product-grid">
-            ${products.length ? pagedProducts.items.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products match your search.</div>`}
+            ${products.length ? products.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products match your search.</div>`}
           </div>
-          ${renderProductPagination(pagedProducts.page, pagedProducts.pageCount, 'home')}
         </section>
       `;
       root.innerHTML = html;
@@ -2362,7 +2250,6 @@
       const root = document.getElementById('store-content');
       const categories = getStoreCategories();
       const products = getFilteredProducts();
-      const pagedProducts = getPagedProducts(products);
       root.innerHTML = `
         <div class="page-box">
           <div class="section-head" style="margin-bottom:18px;">
@@ -2399,9 +2286,8 @@
           </div>
 
           <div class="product-grid" id="shop-product-grid">
-            ${products.length ? pagedProducts.items.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products found.</div>`}
+            ${products.length ? products.map(renderProductCard).join('') : `<div class="empty-state" style="grid-column:1/-1;">No products found.</div>`}
           </div>
-          ${renderProductPagination(pagedProducts.page, pagedProducts.pageCount, 'shop')}
         </div>
       `;
       document.getElementById('shopCategoryFilter').value = state.filters.category || '';
@@ -2414,15 +2300,13 @@
     function renderProductCard(product) {
       const wishlist = db.get(DB_KEYS.wishlist, []);
       const isFav = wishlist.includes(product.id);
-      const discountPercentage = getProductDiscountPercentage(product);
       const stockState = product.stock <= getSettings().lowStockThreshold ? (product.stock === 0 ? 'danger' : 'warning') : 'normal';
       const stockText = product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? `Low stock (${product.stock})` : `In stock (${product.stock})`;
       const externalStock = getExternalInventoryForProduct(product);
       return `
         <article class="product-card">
-          ${discountPercentage > 0 ? `<span class="product-badge">-${discountPercentage}%</span>` : ''}
           <button class="wishlist-btn ${isFav ? 'active' : ''}" onclick="toggleWishlist('${product.id}', event)"><i class="fa-solid fa-heart"></i></button>
-          <img class="product-image" src="${product.image}" alt="${product.name}" onclick="openProductModal('${product.id}')" />
+          <img class="product-image" src="${product.image}" alt="${product.name}" loading="lazy" onclick="openProductModal('${product.id}')" />
           <div class="product-body">
             <div class="product-meta">${product.category}</div>
             <div class="product-name" onclick="openProductModal('${product.id}')">${product.name}</div>
@@ -2432,7 +2316,6 @@
             </div>
             <div class="price-row">
               <span class="price-current">${formatMoney(product.price)}</span>
-              ${product.oldPrice ? `<span class="price-old">${formatMoney(product.oldPrice)}</span>` : ''}
             </div>
             <div class="stock-line ${stockState}"><strong>${stockText}</strong></div>
             ${externalStock.length ? `<div class="stock-line">${externalStock.map(source => `<div>${escapeIntegrationValue(source.location || source.name)}: <strong>${source.quantity > 0 ? `${source.quantity} available` : 'Out of stock'}</strong>${source.stale ? ' (sync needed)' : ''}</div>`).join('')}</div>` : ''}
@@ -3036,7 +2919,6 @@
             </div>
             <div class="price-row">
               <span class="price-current">${formatMoney(product.price)}</span>
-              ${product.oldPrice ? `<span class="price-old">${formatMoney(product.oldPrice)}</span>` : ''}
             </div>
             <div class="stock-line ${product.stock <= getSettings().lowStockThreshold ? 'warning' : 'normal'}" style="margin:10px 0 18px;"><strong>${product.stock === 0 ? 'Out of stock' : product.stock <= getSettings().lowStockThreshold ? 'Low stock' : 'In stock'}</strong></div>
             <div class="qty-controls" style="margin-bottom:16px;">
@@ -3054,7 +2936,6 @@
               <div><strong>SKU:</strong> ${product.sku}</div>
               <div><strong>Stock:</strong> ${product.stock}</div>
               <div><strong>Category:</strong> ${product.category}</div>
-              <div><strong>Discount:</strong> ${product.discount || 0}%</div>
             </div>
           </div>
         </div>
@@ -3104,7 +2985,6 @@
       state.filters.category = '';
       state.filters.price = 'all';
       state.filters.discount = false;
-      state.filters.page = 1;
       const suggestions = document.getElementById('searchResults');
       suggestions.classList.remove('visible');
       suggestions.innerHTML = '';
@@ -3119,7 +2999,6 @@
         suggestions.classList.remove('visible');
         suggestions.innerHTML = '';
         state.filters.search = '';
-        state.filters.page = 1;
         if (state.currentStorePage === 'shop') renderShopPage();
         else renderStoreHome();
         return;
@@ -3156,7 +3035,6 @@
           }
           document.getElementById('searchInput').value = product.name;
           state.filters.search = product.name;
-          state.filters.page = 1;
           applySearch();
         });
       });
@@ -5239,16 +5117,6 @@
           else if (state.currentStorePage === 'home') renderStoreHome();
         }, 180);
       });
-      let mobileInfiniteScrollTimer;
-      window.addEventListener('scroll', () => {
-        if (!window.matchMedia('(max-width: 760px)').matches) return;
-        clearTimeout(mobileInfiniteScrollTimer);
-        mobileInfiniteScrollTimer = setTimeout(() => {
-          if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 600) {
-            loadNextMobileProductPage();
-          }
-        }, 180);
-      }, { passive: true });
       attachMotionObserver();
       if (adminPage && isSupabaseAdmin) renderAdminDashboard();
       else {
