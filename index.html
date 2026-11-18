@@ -65,6 +65,26 @@
     html.admin-route:not(.admin-authenticated) #admin-login-gate {
       display: grid !important;
     }
+    html.admin-route:not(.admin-access-verified) .system-banner,
+    html.admin-route:not(.admin-access-verified) #store-view,
+    html.admin-route:not(.admin-access-verified) #admin-view,
+    html.admin-route:not(.admin-access-verified) #admin-login-gate {
+      display: none !important;
+    }
+    html.admin-route:not(.admin-access-verified) #admin-access-gate {
+      display: grid !important;
+    }
+    .admin-access-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: var(--dark);
+      color: var(--white);
+      text-align: center;
+    }
     .admin-login-card {
       width: min(420px, 100%);
       background: var(--white);
@@ -679,6 +699,20 @@
       padding: 24px;
       margin: 18px 4.5%;
     }
+    .checkout-page,
+    .checkout-page .summary-grid,
+    .checkout-page .summary-grid > *,
+    .checkout-page #checkoutForm,
+    .checkout-page .field-group {
+      min-width: 0;
+    }
+    .checkout-page .field-group input,
+    .checkout-page .field-group select,
+    .checkout-page .field-group textarea {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
     .page-box h2 {
       font-size: 32px;
       margin-bottom: 18px;
@@ -1224,6 +1258,10 @@
       .mini-grid { grid-template-columns: 1fr; }
       .page-box { margin: 12px 14px; }
       .content-section { margin-left: 14px; margin-right: 14px; }
+      .checkout-page { margin: 8px; padding: 16px 12px; }
+      .checkout-page h2 { font-size: 26px; }
+      .checkout-page .panel,
+      .checkout-page .summary-box { padding: 14px; }
     }
     @media (max-width: 540px) {
       .hero-copy { padding: 30px 20px; }
@@ -1236,6 +1274,10 @@
   <script>
     if (new URLSearchParams(window.location.search).has('admin')) {
       document.documentElement.classList.add('admin-route');
+      const robotsMeta = document.createElement('meta');
+      robotsMeta.name = 'robots';
+      robotsMeta.content = 'noindex, nofollow';
+      document.head.appendChild(robotsMeta);
     }
   </script>
 </head>
@@ -1253,12 +1295,11 @@
       <a href="/" style="display:block;text-align:center;margin-top:16px;color:var(--muted);font-size:13px;">Ku noqo dukaanka</a>
     </div>
   </div>
+  <div id="admin-access-gate" class="admin-access-gate" role="status" aria-live="polite">
+    <p>Hubinta gelitaanka maamulka...</p>
+  </div>
   <div class="system-banner">
     <div><strong>DOJIYE STORE</strong></div>
-    <div class="toggle-group">
-      <span class="toggle-pill" onclick="switchView('store')">Customer Store</span>
-      <span class="toggle-pill admin-only" onclick="switchView('admin')">Admin Panel</span>
-    </div>
   </div>
 
   <div id="store-view" class="app-view active">
@@ -1333,7 +1374,6 @@
           <button onclick="renderAdminSettings()"><i class="fa-solid fa-gear"></i> Website Settings</button>
           <button onclick="renderAccountPage()"><i class="fa-solid fa-user-circle"></i> Profile</button>
           <button onclick="logoutAdmin()"><i class="fa-solid fa-right-from-bracket"></i> Admin Sign Out</button>
-          <button onclick="switchView('store')"><i class="fa-solid fa-store"></i> Back to Store</button>
         </div>
       </aside>
 
@@ -1374,7 +1414,6 @@
       coupons: 'dojiye_coupons',
       notifications: 'dojiye_notifications',
       settings: 'dojiye_settings',
-      users: 'dojiye_users',
       payments: 'dojiye_payments',
       deliveries: 'dojiye_deliveries',
       suppliers: 'dojiye_suppliers',
@@ -1395,7 +1434,6 @@
       coupons: 'coupons',
       notifications: 'notifications',
       settings: 'settings',
-      users: 'users',
       payments: 'payments',
       deliveries: 'deliveries',
       suppliers: 'suppliers',
@@ -1414,11 +1452,16 @@
       anonKey: 'sb_publishable_n_YzqnUGwIEHSEEPXtKXzQ_gsYjJmwv'
     };
 
+    const isAdminApp = new URLSearchParams(window.location.search).has('admin');
     const supabase = supabaseConfig.url && supabaseConfig.anonKey && typeof window.supabase !== 'undefined'
-      ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
+      ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+        auth: { storageKey: isAdminApp ? 'dojiye_admin_auth' : 'dojiye_customer_auth' }
+      })
       : null;
     let supabaseSyncReady = false;
     let isSupabaseAdmin = false;
+    let currentCustomerUser = null;
+    let customerOrders = [];
     const pendingSupabaseKeys = new Set();
     let adminOrderMonitorTimer = null;
     let adminOrderMonitorInFlight = false;
@@ -1429,12 +1472,55 @@
       return typeof email === 'string' && ADMIN_EMAILS.has(email.trim().toLowerCase());
     }
 
+    function getCustomerProfile(user) {
+      if (!user || isAllowedAdmin(user.email)) return null;
+      const metadata = user.user_metadata || {};
+      return {
+        id: user.id,
+        name: String(metadata.full_name || metadata.name || user.email?.split('@')[0] || ''),
+        email: String(user.email || ''),
+        phone: String(metadata.phone || ''),
+        city: String(metadata.city || '')
+      };
+    }
+
+    function clearPrivateAdminData() {
+      [
+        DB_KEYS.orders,
+        DB_KEYS.customers,
+        DB_KEYS.coupons,
+        DB_KEYS.notifications,
+        DB_KEYS.payments,
+        DB_KEYS.deliveries,
+        DB_KEYS.suppliers,
+        DB_KEYS.integrations,
+        DB_KEYS.productFulfillment,
+        DB_KEYS.orderFulfillment,
+        DB_KEYS.accountClosures
+      ].forEach(storageKey => localStorage.removeItem(storageKey));
+    }
+
     function clearAdminOnlyInventoryData() {
       [
         DB_KEYS.integrations,
         DB_KEYS.productFulfillment,
         DB_KEYS.orderFulfillment
       ].forEach(storageKey => localStorage.removeItem(storageKey));
+    }
+
+    async function verifyAdminAccess() {
+      try {
+        const response = await fetch('/admin.html?access-check=1', {
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        if (!response.ok) return false;
+        const page = await response.text();
+        return page.includes('<!-- cloudflare-access-admin-check -->');
+      } catch (error) {
+        console.warn('Cloudflare Access verification failed:', error);
+        return false;
+      }
     }
 
     function setSupabaseSyncStatus(message, state = '') {
@@ -1455,12 +1541,7 @@
           return false;
         }
         for (const row of data || []) {
-          if (Object.values(DB_KEYS).includes(row.key)) {
-            const value = row.key === DB_KEYS.users && Array.isArray(row.data)
-              ? row.data.filter(user => user.role !== 'admin')
-              : row.data;
-            localStorage.setItem(row.key, JSON.stringify(value));
-          }
+          if (Object.values(DB_KEYS).includes(row.key)) localStorage.setItem(row.key, JSON.stringify(row.data));
         }
         return true;
       } catch (error) {
@@ -1474,7 +1555,7 @@
       try {
         setSupabaseSyncStatus('saving…');
         const rows = [...new Set(storageKeys)]
-          .filter(storageKey => Object.values(DB_KEYS).includes(storageKey) && storageKey !== DB_KEYS.users)
+          .filter(storageKey => Object.values(DB_KEYS).includes(storageKey))
           .map(storageKey => ({
             key: storageKey,
             data: db.get(storageKey, [])
@@ -1499,7 +1580,7 @@
 
     let supabaseSyncTimer;
     function scheduleSupabaseSync(storageKey) {
-      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady || storageKey === DB_KEYS.users) return;
+      if (!supabase || !isSupabaseAdmin || !supabaseSyncReady) return;
       pendingSupabaseKeys.add(storageKey);
       clearTimeout(supabaseSyncTimer);
       setSupabaseSyncStatus('changes waiting to save');
@@ -1664,8 +1745,6 @@
       { id: 'notif_3', title: 'Customer', message: 'A new customer registered for a wholesale order.', time: '1 hour ago', read: true }
     ];
 
-    const defaultUsers = [];
-
     const defaultPayments = [
       { id: 'pay_1', orderId: '#1052', customer: 'Abdullahi Hassan', amount: 1250, method: 'Cash on Delivery', status: 'Pending', date: 'May 31, 2026' },
       { id: 'pay_2', orderId: '#1051', customer: 'Ayaan Mohamed', amount: 650, method: 'E-Birr', status: 'Paid', date: 'May 31, 2026' },
@@ -1750,7 +1829,6 @@
         if (name === 'coupons' && !localStorage.getItem(key)) db.set(key, defaultCoupons);
         if (name === 'notifications' && !localStorage.getItem(key)) db.set(key, defaultNotifications);
         if (name === 'settings' && !localStorage.getItem(key)) db.set(key, defaultSettings);
-        if (name === 'users' && !localStorage.getItem(key)) db.set(key, defaultUsers);
         if (name === 'payments' && !localStorage.getItem(key)) db.set(key, defaultPayments);
         if (name === 'deliveries' && !localStorage.getItem(key)) db.set(key, defaultDeliveries);
         if (name === 'suppliers' && !localStorage.getItem(key)) db.set(key, defaultSuppliers);
@@ -1760,8 +1838,6 @@
         if (name === 'orderFulfillment' && !localStorage.getItem(key)) db.set(key, []);
         if (name === 'accountClosures' && !localStorage.getItem(key)) db.set(key, []);
       }
-      const users = db.get(DB_KEYS.users, defaultUsers).filter(user => user.role !== 'admin');
-      db.set(DB_KEYS.users, users);
     }
 
     function removeEmailFromOrders() {
@@ -1888,7 +1964,7 @@
     }
 
     function setupPageAccess() {
-      const adminPage = new URLSearchParams(window.location.search).has('admin');
+      const adminPage = isAdminApp;
       document.documentElement.classList.toggle('admin-route', adminPage);
       document.documentElement.classList.toggle('admin-authenticated', adminPage && isSupabaseAdmin);
       document.querySelectorAll('.admin-only').forEach(element => {
@@ -1936,6 +2012,8 @@
           throw new Error('Email-kan looma oggola maamulka.');
         }
         isSupabaseAdmin = true;
+        currentCustomerUser = null;
+        customerOrders = [];
         const hydrated = await hydrateFromSupabase();
         if (!hydrated) throw new Error('Xogta Supabase lama soo akhrin karin.');
         supabaseSyncReady = true;
@@ -1953,9 +2031,11 @@
           if (signOutError) console.warn('Could not clear failed admin session:', signOutError.message);
         }
         isSupabaseAdmin = false;
+        currentCustomerUser = null;
+        customerOrders = [];
         supabaseSyncReady = false;
         document.documentElement.classList.remove('admin-authenticated');
-        clearAdminOnlyInventoryData();
+        clearPrivateAdminData();
         document.getElementById('admin-view').classList.remove('active');
         document.getElementById('admin-view').classList.add('hidden');
         errorElement.textContent = `Gelitaanku wuu fashilmay: ${error.message}`;
@@ -1972,9 +2052,11 @@
       }
       stopAdminOrderMonitor();
       isSupabaseAdmin = false;
+      currentCustomerUser = null;
+      customerOrders = [];
       supabaseSyncReady = false;
       document.documentElement.classList.remove('admin-authenticated');
-      clearAdminOnlyInventoryData();
+      clearPrivateAdminData();
       document.getElementById('admin-view').classList.remove('active');
       document.getElementById('admin-view').classList.add('hidden');
       document.getElementById('admin-login-gate').classList.remove('hidden');
@@ -2453,7 +2535,7 @@
 
       const root = document.getElementById('store-content');
       root.innerHTML = `
-        <div class="page-box">
+        <div class="page-box checkout-page">
           <h2>Checkout</h2>
           <div class="summary-grid">
             <div class="panel">
@@ -2461,19 +2543,19 @@
                 <div class="form-grid">
                   <div class="field-group">
                     <label>Full Name</label>
-                    <input type="text" id="customerName" required placeholder="Enter your full name" />
+                    <input type="text" id="customerName" name="name" autocomplete="name" required placeholder="Enter your full name" />
                   </div>
                   <div class="field-group">
                     <label>Phone Number</label>
-                    <input type="tel" id="customerPhone" required placeholder="+251 9xx xxx xxx" />
+                    <input type="tel" id="customerPhone" name="tel" autocomplete="tel" required placeholder="+251 9xx xxx xxx" />
                   </div>
                   <div class="field-group">
                     <label>City</label>
-                    <input type="text" id="customerCity" required placeholder="Jigjiga" />
+                    <input type="text" id="customerCity" name="address-level2" autocomplete="address-level2" required placeholder="Jigjiga" />
                   </div>
                   <div class="field-group">
                     <label>Area</label>
-                    <input type="text" id="customerArea" placeholder="Area or neighborhood" />
+                    <input type="text" id="customerArea" name="address-level3" autocomplete="address-level3" placeholder="Area or neighborhood" />
                   </div>
                   <div class="field-group">
                     <label>Payment Method</label>
@@ -2490,7 +2572,7 @@
                 </div>
                 <div class="field-group" style="margin-top:16px;">
                   <label>Full Delivery Address</label>
-                  <input type="text" id="customerAddress" required placeholder="Street, building, district" />
+                  <input type="text" id="customerAddress" name="street-address" autocomplete="street-address" required placeholder="Street, building, district" />
                 </div>
                 <div class="field-group" style="margin-top:16px;">
                   <label>Delivery Notes</label>
@@ -2596,30 +2678,9 @@
         return;
       }
 
-      const orders = db.get(DB_KEYS.orders, []);
-      orders.unshift(savedOrder);
-      db.set(DB_KEYS.orders, orders);
-
-      const customers = db.get(DB_KEYS.customers, []);
-      let customer = customers.find(item => item.phone === phone);
-      if (!customer) {
-        customer = {
-          id: uid('cust'),
-          name,
-          phone,
-          city,
-          totalSpent: total,
-          ordersCount: 1,
-          status: 'Active',
-          lastOrder: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        };
-        customers.unshift(customer);
-      } else {
-        customer.totalSpent = Number(customer.totalSpent || 0) + total;
-        customer.ordersCount = Number(customer.ordersCount || 0) + 1;
-        customer.lastOrder = order.date;
+      if (currentCustomerUser && savedOrder.customerUserId === currentCustomerUser.id) {
+        customerOrders.unshift(savedOrder);
       }
-      db.set(DB_KEYS.customers, customers);
 
       const products = db.get(DB_KEYS.products, defaultProducts);
       cart.forEach(item => {
@@ -2630,16 +2691,6 @@
         if (product.stock === 0) product.status = 'Hidden';
       });
       db.set(DB_KEYS.products, products);
-
-      const notifications = db.get(DB_KEYS.notifications, []);
-      notifications.unshift({
-        id: uid('notif'),
-        title: 'New Order',
-        message: `Order ${orderId} was placed by ${name}.`,
-        time: 'Just now',
-        read: false
-      });
-      db.set(DB_KEYS.notifications, notifications);
 
       db.set(DB_KEYS.cart, []);
       updateBadges();
@@ -2728,11 +2779,30 @@
       `;
     }
 
-    function renderAccountPage() {
-      const currentUser = JSON.parse(localStorage.getItem('dojiye_current_user') || 'null');
+    async function fetchCustomerOrders() {
+      if (!supabase || !currentCustomerUser) return [];
+      const { data, error } = await supabase.rpc('get_my_dojiye_orders');
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error('Supabase returned an invalid order list.');
+      return data;
+    }
+
+    async function renderAccountPage() {
+      const currentUser = currentCustomerUser;
       const root = document.getElementById('store-content');
       if (currentUser) {
-        const orderHistory = db.get(DB_KEYS.orders, []).filter(order => order.phone && currentUser.phone && order.phone === currentUser.phone);
+        root.innerHTML = '<div class="page-box"><h2>My Account</h2><div class="empty-state">Loading your private account...</div></div>';
+        let orderHistory = [];
+        let ordersUnavailable = false;
+        try {
+          orderHistory = await fetchCustomerOrders();
+          customerOrders = orderHistory;
+        } catch (error) {
+          console.error('Could not load customer orders:', error);
+          customerOrders = [];
+          ordersUnavailable = true;
+        }
+        if (currentCustomerUser?.id !== currentUser.id) return;
         root.innerHTML = `
           <div class="page-box">
             <h2>My Account</h2>
@@ -2740,10 +2810,10 @@
               <div class="panel">
                 <h3>Profile</h3>
                 <div class="form-grid" style="margin-top:16px;">
-                  <div class="field-group"><label>Name</label><input value="${currentUser.name}" /></div>
-                  <div class="field-group"><label>Email</label><input value="${currentUser.email}" /></div>
-                  <div class="field-group"><label>Phone</label><input value="${currentUser.phone || ''}" /></div>
-                  <div class="field-group"><label>City</label><input value="${currentUser.city || ''}" /></div>
+                  <div class="field-group"><label>Name</label><input value="${escapeIntegrationValue(currentUser.name)}" readonly /></div>
+                  <div class="field-group"><label>Email</label><input value="${escapeIntegrationValue(currentUser.email)}" readonly /></div>
+                  <div class="field-group"><label>Phone</label><input value="${escapeIntegrationValue(currentUser.phone)}" readonly /></div>
+                  <div class="field-group"><label>City</label><input value="${escapeIntegrationValue(currentUser.city)}" readonly /></div>
                 </div>
               </div>
               <div class="summary-box">
@@ -2757,7 +2827,7 @@
             </div>
             <div class="panel" style="margin-top:20px;">
               <h3>Recent Orders</h3>
-              ${orderHistory.length ? `<table class="data-table" style="margin-top:14px;"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>${orderHistory.slice(0,5).map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state" style="margin-top:14px;">No orders yet.</div>'}
+              ${ordersUnavailable ? '<div class="empty-state" style="margin-top:14px;">Dalabyada lama soo shubi karin. Maamulka ha hubiyo RPC-ga get_my_dojiye_orders ee Supabase.</div>' : orderHistory.length ? `<table class="data-table" style="margin-top:14px;"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>${orderHistory.slice(0,5).map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state" style="margin-top:14px;">No orders yet.</div>'}
             </div>
           </div>
         `;
@@ -2769,17 +2839,17 @@
               <div class="panel">
                 <h3>Login</h3>
                 <form onsubmit="loginUser(event)">
-                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="loginEmail" required /></div>
-                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="loginPassword" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="loginEmail" autocomplete="username" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="loginPassword" autocomplete="current-password" required /></div>
                   <button class="btn btn-primary" style="margin-top:16px;" type="submit">Login</button>
                 </form>
               </div>
               <div class="panel">
                 <h3>Register</h3>
                 <form onsubmit="registerUser(event)">
-                  <div class="field-group" style="margin-top:14px;"><label>Name</label><input type="text" id="registerName" required /></div>
-                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="registerEmail" required /></div>
-                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="registerPassword" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Name</label><input type="text" id="registerName" maxlength="120" autocomplete="name" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Email</label><input type="email" id="registerEmail" autocomplete="email" required /></div>
+                  <div class="field-group" style="margin-top:14px;"><label>Password</label><input type="password" id="registerPassword" autocomplete="new-password" required /></div>
                   <button class="btn btn-dark" style="margin-top:16px;" type="submit">Register</button>
                 </form>
               </div>
@@ -2789,64 +2859,125 @@
       }
     }
 
-    function loginUser(event) {
+    async function loginUser(event) {
       event.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value.trim();
-      const users = db.get(DB_KEYS.users, defaultUsers);
-      const match = users.find(item => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
-      if (!match) {
-        showToast('Invalid login details.', 'danger');
+      const password = document.getElementById('loginPassword').value;
+      if (!supabase) {
+        showToast('Supabase lama heli karo. Fadlan isku day mar kale.', 'danger');
         return;
       }
-      localStorage.setItem('dojiye_current_user', JSON.stringify({ id: match.id, name: match.name, email: match.email, phone: match.phone || '', city: match.city || '' }));
-      showToast('Login successful.', 'success');
-      renderAccountPage();
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (isAllowedAdmin(data.user?.email)) {
+          const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+          if (signOutError) throw signOutError;
+          throw new Error('Email-kan maamulka ayaa leh. Adeegso bogga admin-ka.');
+        }
+        currentCustomerUser = getCustomerProfile(data.user);
+        if (!currentCustomerUser) throw new Error('Akoonka customer-ka lama xaqiijin.');
+        customerOrders = [];
+        localStorage.removeItem('dojiye_users');
+        localStorage.removeItem('dojiye_current_user');
+        renderAccountPage();
+        showToast('Login successful.', 'success');
+      } catch (error) {
+        console.error('Customer sign-in failed:', error);
+        showToast(`Gelitaanka wuu fashilmay: ${error.message}`, 'danger');
+      }
     }
 
-    function registerUser(event) {
+    async function registerUser(event) {
       event.preventDefault();
       const name = document.getElementById('registerName').value.trim();
       const email = document.getElementById('registerEmail').value.trim();
-      const password = document.getElementById('registerPassword').value.trim();
+      const password = document.getElementById('registerPassword').value;
       if (!name || !email || !password) {
         showToast('Please complete all registration details.', 'warning');
         return;
       }
-      const users = db.get(DB_KEYS.users, defaultUsers);
-      const exists = users.some(item => item.email.toLowerCase() === email.toLowerCase());
-      if (exists) {
-        showToast('User already exists.', 'warning');
+      if (!supabase) {
+        showToast('Supabase lama heli karo. Fadlan isku day mar kale.', 'danger');
         return;
       }
-      const user = { id: uid('user'), name, email, password, role: 'customer', city: 'Jigjiga', phone: '' };
-      users.push(user);
-      db.set(DB_KEYS.users, users);
-      localStorage.setItem('dojiye_current_user', JSON.stringify({ id: user.id, name: user.name, email: user.email, phone: user.phone, city: user.city }));
-      showToast('Registration successful.', 'success');
-      renderAccountPage();
+      if (isAllowedAdmin(email)) {
+        showToast('Email-kan maamulka ayaa u gaar ah; isticmaal email customer oo kale.', 'warning');
+        return;
+      }
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } }
+        });
+        if (error) throw error;
+        localStorage.removeItem('dojiye_users');
+        localStorage.removeItem('dojiye_current_user');
+        if (data.session && data.user) {
+          currentCustomerUser = getCustomerProfile(data.user);
+          if (!currentCustomerUser) throw new Error('Akoonka customer-ka lama xaqiijin.');
+          customerOrders = [];
+          renderAccountPage();
+          showToast('Akoonka si guul leh ayaa loo sameeyey.', 'success');
+        } else {
+          currentCustomerUser = null;
+          customerOrders = [];
+          renderAccountPage();
+          showToast('Akoonka waa la sameeyey. Emailkaaga xaqiiji ka hor intaadan gelin.', 'success');
+        }
+      } catch (error) {
+        console.error('Customer registration failed:', error);
+        showToast(`Akoonka lama samayn: ${error.message}`, 'danger');
+      }
     }
 
-    function logoutCurrentUser() {
+    async function logoutCurrentUser() {
+      if (!supabase) {
+        showToast('Supabase lama heli karo; ka bixitaanka lama xaqiijin.', 'danger');
+        return;
+      }
+      try {
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+        if (error) throw error;
+      } catch (error) {
+        console.error('Customer sign-out failed:', error);
+        showToast(`Ka bixitaanku wuu fashilmay: ${error.message}`, 'danger');
+        return;
+      }
+      currentCustomerUser = null;
+      customerOrders = [];
+      clearPrivateAdminData();
+      localStorage.removeItem('dojiye_users');
       localStorage.removeItem('dojiye_current_user');
       renderAccountPage();
       showToast('Logged out.', 'info');
     }
 
-    function renderOrdersHistory() {
-      const user = JSON.parse(localStorage.getItem('dojiye_current_user') || 'null');
-      const orders = db.get(DB_KEYS.orders, []).filter(order => user && order.phone && user.phone && order.phone === user.phone);
+    async function renderOrdersHistory() {
       const root = document.getElementById('store-content');
+      if (!currentCustomerUser) {
+        renderAccountPage();
+        return;
+      }
+      root.innerHTML = '<div class="page-box"><h2>My Orders</h2><div class="empty-state">Loading your private orders...</div></div>';
+      try {
+        customerOrders = await fetchCustomerOrders();
+      } catch (error) {
+        console.error('Could not load customer order history:', error);
+        root.innerHTML = '<div class="page-box"><h2>My Orders</h2><div class="empty-state">Dalabyada lama soo shubi karin. Maamulka ha hubiyo RPC-ga get_my_dojiye_orders ee Supabase.</div></div>';
+        return;
+      }
       root.innerHTML = `
         <div class="page-box">
           <h2>My Orders</h2>
-          ${orders.length ? `<table class="data-table"><thead><tr><th>Order ID</th><th>Date</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>${orders.map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${escapeIntegrationValue(String(order.status).toLowerCase())}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td><td><button class="btn btn-small btn-dark" onclick="viewOrderDetails('${order.id}')">View</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No previous orders found.</div>'}
+          ${customerOrders.length ? `<table class="data-table"><thead><tr><th>Order ID</th><th>Date</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>${customerOrders.map(order => `<tr><td>${escapeIntegrationValue(order.id)}</td><td>${escapeIntegrationValue(order.date)}</td><td><span class="status-pill status-${String(order.status).toLowerCase()}">${escapeIntegrationValue(order.status)}</span></td><td>${formatMoney(order.amount)}</td><td><button class="btn btn-small btn-dark" onclick="viewOrderDetails('${escapeIntegrationValue(order.id)}')">View</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">No previous orders found.</div>'}
         </div>
       `;
     }
 
     function viewOrderDetails(orderId) {
-      const order = db.get(DB_KEYS.orders, []).find(item => item.id === orderId);
+      const order = customerOrders.find(item => item.id === orderId);
       if (!order) return;
       openModal(`
         <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
@@ -2865,8 +2996,13 @@
           <h3>Products</h3>
           ${order.products ? order.products.map(prod => `<div class="summary-line"><span>${escapeIntegrationValue(prod.name)} x ${Number(prod.qty) || 0}</span><span>${formatMoney(prod.price * prod.qty)}</span></div>`).join('') : ''}
         </div>
-        <button class="btn btn-primary" style="margin-top:18px;" onclick="openInvoice('${order.id}')">Print Invoice</button>
+        <button class="btn btn-primary" style="margin-top:18px;" onclick="printCustomerOrderInvoice('${escapeIntegrationValue(order.id)}')">Print Invoice</button>
       `);
+    }
+
+    function printCustomerOrderInvoice(orderId) {
+      const order = customerOrders.find(item => item.id === orderId);
+      if (order) printOrderInvoiceRecord(order);
     }
 
     function toggleWishlist(productId, event) {
@@ -5005,8 +5141,7 @@
       document.getElementById('admin-content').classList.toggle('reports-static', title === 'Reports & Analytics');
     }
 
-    function printOrderInvoice(orderId) {
-      const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
+    function printOrderInvoiceRecord(order) {
       if (!order) return;
       const content = `
         <html><head><title>Invoice ${order.id}</title><style>body{font-family:Arial,sans-serif;padding:30px;}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee}</style></head><body>
@@ -5036,6 +5171,11 @@
       win.print();
     }
 
+    function printOrderInvoice(orderId) {
+      const order = db.get(DB_KEYS.orders, defaultOrders).find(item => item.id === orderId);
+      printOrderInvoiceRecord(order);
+    }
+
     function openInvoice(orderId) {
       printOrderInvoice(orderId);
     }
@@ -5062,28 +5202,31 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       seedData();
-      const adminPage = new URLSearchParams(window.location.search).has('admin');
+        localStorage.removeItem('dojiye_users');
+        localStorage.removeItem('dojiye_current_user');
+        currentCustomerUser = null;
+        customerOrders = [];
+        const adminPage = isAdminApp;
+        if (!adminPage) clearPrivateAdminData();
+        if (adminPage) {
+          if (!(await verifyAdminAccess())) {
+            window.location.replace('/admin.html');
+            return;
+          }
+          document.documentElement.classList.add('admin-access-verified');
+          document.getElementById('admin-access-gate').classList.add('hidden');
+        }
       if (supabase) {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
           console.warn('Supabase session check failed:', sessionError.message);
         } else if (sessionData.session) {
-          if (adminPage) {
-            const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
-            if (signOutError) {
-              console.error('Could not clear the saved admin session:', signOutError.message);
-              document.getElementById('adminLoginError').textContent = 'Fadlan dib u cusboonaysii bogga oo markale geli email-ka iyo password-ka.';
-            }
-          } else {
             const { data, error } = await supabase.auth.getUser();
             if (error) {
               console.warn('Supabase user verification failed:', error.message);
             } else {
               isSupabaseAdmin = isAllowedAdmin(data.user?.email);
-            }
-            if (!isSupabaseAdmin) {
-              const { error: signOutError } = await supabase.auth.signOut();
-              if (signOutError) console.warn('Could not clear non-admin Supabase session:', signOutError.message);
+              if (!isSupabaseAdmin) currentCustomerUser = getCustomerProfile(data.user);
             }
           }
         }
@@ -5096,8 +5239,8 @@
         console.warn('Supabase data was not loaded; automatic sync is disabled to protect remote data.');
         setSupabaseSyncStatus('could not load data', 'error');
       }
-      if (!isSupabaseAdmin || !hydrated) clearAdminOnlyInventoryData();
-      removeEmailFromOrders();
+      if (!isSupabaseAdmin || !hydrated) clearPrivateAdminData();
+      else removeEmailFromOrders();
       applyBranding();
       setupPageAccess();
       updateBadges();

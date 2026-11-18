@@ -28,6 +28,7 @@ declare
   safe_fulfillment_products jsonb := '[]'::jsonb;
   order_record jsonb;
   source_store text;
+  customer_user_id uuid := auth.uid();
 begin
   if order_data is null or jsonb_typeof(order_data) <> 'object' then
     raise exception 'Order details are invalid.';
@@ -124,11 +125,7 @@ begin
     from jsonb_array_elements(orders_data) as existing_order(value)
     where existing_order.value ->> 'id' = order_data ->> 'id'
   ) then
-    select existing_order.value into order_record
-    from jsonb_array_elements(orders_data) as existing_order(value)
-    where existing_order.value ->> 'id' = order_data ->> 'id'
-    limit 1;
-    return order_record;
+    raise exception 'Order reference has already been used.';
   end if;
 
   select coalesce(data, '{}'::jsonb) into settings_data
@@ -224,6 +221,7 @@ begin
 
   order_record := jsonb_build_object(
     'id', order_data ->> 'id',
+    'customerUserId', customer_user_id,
     'customer', order_data ->> 'customer',
     'phone', order_data ->> 'phone',
     'city', order_data ->> 'city',
@@ -268,6 +266,36 @@ revoke all on function public.place_dojiye_order(jsonb) from public;
 revoke all on function public.place_dojiye_order(jsonb) from anon;
 revoke all on function public.place_dojiye_order(jsonb) from authenticated;
 grant execute on function public.place_dojiye_order(jsonb) to anon, authenticated;
+
+create or replace function public.get_my_dojiye_orders()
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $function$
+declare
+  customer_user_id uuid := auth.uid();
+  customer_orders jsonb;
+begin
+  if customer_user_id is null then
+    raise exception 'Authentication is required to view order history.';
+  end if;
+
+  select coalesce(jsonb_agg(order_row.value order by order_row.ordinality), '[]'::jsonb)
+    into customer_orders
+  from public.dojiye_store_data as store
+  cross join lateral jsonb_array_elements(store.data) with ordinality as order_row(value, ordinality)
+  where store.key = 'dojiye_orders'
+    and order_row.value ->> 'customerUserId' = customer_user_id::text;
+
+  return customer_orders;
+end;
+$function$;
+
+revoke all on function public.get_my_dojiye_orders() from public;
+revoke all on function public.get_my_dojiye_orders() from anon;
+revoke all on function public.get_my_dojiye_orders() from authenticated;
+grant execute on function public.get_my_dojiye_orders() to authenticated;
 
 create or replace function public.get_dojiye_order_status(order_id text, customer_phone text)
 returns jsonb
