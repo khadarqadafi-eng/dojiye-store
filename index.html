@@ -1228,7 +1228,49 @@
       .nav-links a { font-size: 12px; }
       .feature-row { grid-template-columns: 1fr; }
       .category-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-      .product-grid { grid-template-columns: minmax(0,1fr); }
+      .product-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 4px;
+        align-items: start;
+      }
+      .product-card { min-width: 0; border-radius: 8px; }
+      .product-image { height: 76px; object-fit: cover; }
+      .wishlist-btn { top: 4px; right: 4px; width: 22px; height: 22px; font-size: 11px; }
+      .product-badge {
+        top: 4px;
+        left: 4px;
+        max-width: calc(100% - 30px);
+        padding: 3px 4px;
+        overflow: hidden;
+        font-size: 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .product-body { min-width: 0; padding: 5px; }
+      .product-meta,
+      .rating-row,
+      .stock-line,
+      .product-card .btn { display: none; }
+      .product-name {
+        min-height: 26px;
+        margin-top: 0;
+        overflow: hidden;
+        font-size: 9px;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .price-row { display: block; margin: 3px 0 0; line-height: 1.1; }
+      .price-current,
+      .price-old {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .price-current { font-size: 9px; }
+      .price-old { margin-top: 2px; font-size: 8px; }
       .admin-shell { display: block; }
       .admin-sidebar { width: 100%; }
       .admin-content { padding: 18px 16px; }
@@ -2173,15 +2215,21 @@
       const pageCount = Math.ceil(products.length / pageSize);
       const page = Math.min(Math.max(1, Number(state.filters.page) || 1), Math.max(pageCount, 1));
       state.filters.page = page;
-      const start = (page - 1) * pageSize;
+      const end = isMobile ? page * pageSize : pageSize;
       return {
-        items: products.slice(start, start + pageSize),
+        items: products.slice(0, end),
         page,
         pageCount
       };
     }
 
+    function getDeliveryFee(subtotal, settings) {
+      if (subtotal >= 5000) return 0;
+      return Number(settings.deliveryFee || 0);
+    }
+
     function renderProductPagination(page, pageCount, view) {
+      if (window.matchMedia('(max-width: 760px)').matches) return '';
       if (pageCount <= 1) return '';
       const firstPage = Math.max(1, Math.min(page - 2, pageCount - 4));
       const lastPage = Math.min(pageCount, firstPage + 4);
@@ -2191,9 +2239,7 @@
       }
       return `
         <nav class="product-pagination" aria-label="Product pages">
-          <button type="button" ${page === 1 ? 'disabled' : ''} onclick="goToProductPage(${page - 1}, '${view}')">Previous</button>
           ${pageButtons.join('')}
-          <button type="button" ${page === pageCount ? 'disabled' : ''} onclick="goToProductPage(${page + 1}, '${view}')">Next</button>
         </nav>
       `;
     }
@@ -2206,13 +2252,25 @@
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function loadNextMobileProductPage() {
+      if (!window.matchMedia('(max-width: 760px)').matches) return;
+      if (!['home', 'shop'].includes(state.currentStorePage)) return;
+      const products = getFilteredProducts();
+      const pageCount = Math.ceil(products.length / 5);
+      if ((Number(state.filters.page) || 1) >= pageCount) return;
+      state.filters.page = (Number(state.filters.page) || 1) + 1;
+      if (state.currentStorePage === 'home') renderStoreHome();
+      else renderShopPage();
+    }
+
     function renderStoreHome() {
       state.currentStorePage = 'home';
       const root = document.getElementById('store-content');
       const categories = getStoreCategories();
       const homeCategories = categories.slice(0, 6);
       const products = getFilteredProducts();
-      const pagedProducts = getPagedProducts(products.slice(0, 12));
+      const homeProducts = window.matchMedia('(max-width: 760px)').matches ? products : products.slice(0, 12);
+      const pagedProducts = getPagedProducts(homeProducts);
       let html = `
         <section class="hero">
           <div class="hero-copy">
@@ -2230,7 +2288,7 @@
         <section class="feature-row">
           <div class="feature-item">
             <div class="feature-icon"><i class="fa-solid fa-truck-fast"></i></div>
-            <div class="feature-copy"><h5>Free Delivery</h5><p>Orders over 500 ETB</p></div>
+            <div class="feature-copy"><h5>Free Delivery</h5><p>Orders over 5000 ETB</p></div>
           </div>
           <div class="feature-item">
             <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
@@ -2249,7 +2307,6 @@
         <section class="content-section">
           <div class="section-head">
             <h3>Categories</h3>
-            <a href="#" onclick="renderCategoriesPage(); return false;">View All</a>
           </div>
           <div class="category-grid">
             ${homeCategories.map(cat => `
@@ -2264,7 +2321,6 @@
         <section class="content-section">
           <div class="section-head">
             <h3>Featured Products</h3>
-            <a href="#" onclick="state.filters.page = 1; renderShopPage(); return false;">View All</a>
           </div>
           <div class="product-toolbar">
             <div class="toolbar-field">
@@ -2398,7 +2454,7 @@
       const settings = getSettings();
       const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0);
       const discount = cart.reduce((sum, item) => sum + ((Number(item.discount) || 0) / 100) * Number(item.price) * Number(item.qty), 0);
-      const delivery = cart.length ? Number(settings.deliveryFee || 0) : 0;
+      const delivery = cart.length ? getDeliveryFee(subtotal, settings) : 0;
       const tax = cart.length ? subtotal * (Number(settings.taxRate || 0) / 100) : 0;
       const total = subtotal + delivery + tax - discount;
 
@@ -2508,7 +2564,7 @@
       }
       const settings = getSettings();
       const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
-      const delivery = Number(settings.deliveryFee || 0);
+      const delivery = getDeliveryFee(subtotal, settings);
       const tax = subtotal * (Number(settings.taxRate || 0) / 100);
       const total = subtotal + delivery + tax;
 
@@ -2612,7 +2668,7 @@
 
       const settings = getSettings();
       const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
-      const delivery = Number(settings.deliveryFee || 0);
+      const delivery = getDeliveryFee(subtotal, settings);
       const tax = subtotal * (Number(settings.taxRate || 0) / 100);
       const discounts = cart.reduce((sum, item) => sum + ((Number(item.discount) || 0) / 100) * Number(item.price) * Number(item.qty), 0);
       const total = Math.max(subtotal + delivery + tax - discounts, 0);
@@ -5183,6 +5239,16 @@
           else if (state.currentStorePage === 'home') renderStoreHome();
         }, 180);
       });
+      let mobileInfiniteScrollTimer;
+      window.addEventListener('scroll', () => {
+        if (!window.matchMedia('(max-width: 760px)').matches) return;
+        clearTimeout(mobileInfiniteScrollTimer);
+        mobileInfiniteScrollTimer = setTimeout(() => {
+          if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 600) {
+            loadNextMobileProductPage();
+          }
+        }, 180);
+      }, { passive: true });
       attachMotionObserver();
       if (adminPage && isSupabaseAdmin) renderAdminDashboard();
       else {
