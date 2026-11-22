@@ -5284,22 +5284,5 @@
       }
     });
   </script>
-  <script>
-    (() => {
-      if (typeof switchView !== 'undefined' && typeof renderStoreHome !== 'undefined') {
-        return;
-      }
-      const previousScript = document.currentScript.previousElementSibling;
-      const source = previousScript && previousScript.tagName === 'SCRIPT' ? previousScript.textContent : '';
-      if (!source) return;
-      try {
-        const functionNames = [...source.matchAll(/function\s+([A-Za-z0-9_$]+)\s*\(/g)].map(match => match[1]);
-        const exported = new Function(`${source}; return { ${functionNames.join(', ')} };`)();
-        Object.assign(window, exported);
-      } catch (error) {
-        console.error('DOJIYE app bootstrap fallback failed:', error);
-      }
-    })();
-  </script>
 </body>
 </html>
