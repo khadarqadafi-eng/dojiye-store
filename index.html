@@ -1272,7 +1272,10 @@
     }
   </style>
   <script>
-    if (new URLSearchParams(window.location.search).has('admin')) {
+    if (
+      window.location.hostname.toLowerCase() === 'dhabar.dojiyestore.com'
+      || new URLSearchParams(window.location.search).has('admin')
+    ) {
       document.documentElement.classList.add('admin-route');
       const robotsMeta = document.createElement('meta');
       robotsMeta.name = 'robots';
@@ -1452,7 +1455,8 @@
       anonKey: 'sb_publishable_n_YzqnUGwIEHSEEPXtKXzQ_gsYjJmwv'
     };
 
-    const isAdminApp = new URLSearchParams(window.location.search).has('admin');
+    const isAdminApp = window.location.hostname.toLowerCase() === 'dhabar.dojiyestore.com'
+      || new URLSearchParams(window.location.search).has('admin');
     const supabase = supabaseConfig.url && supabaseConfig.anonKey && typeof window.supabase !== 'undefined'
       ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
         auth: { storageKey: isAdminApp ? 'dojiye_admin_auth' : 'dojiye_customer_auth' }
