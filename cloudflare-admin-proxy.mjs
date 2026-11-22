@@ -26,6 +26,16 @@ export default {
       init.body = request.body;
     }
 
-    return fetch(new Request(upstreamUrl, init));
+    const upstreamResponse = await fetch(new Request(upstreamUrl, init));
+    const responseHeaders = new Headers(upstreamResponse.headers);
+    if (upstreamUrl.pathname.endsWith(".html") || upstreamUrl.pathname === "/") {
+      responseHeaders.set("Cache-Control", "no-store");
+      responseHeaders.set("CDN-Cache-Control", "no-store");
+    }
+    return new Response(upstreamResponse.body, {
+      status: upstreamResponse.status,
+      statusText: upstreamResponse.statusText,
+      headers: responseHeaders,
+    });
   },
 };

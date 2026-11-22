@@ -1278,6 +1278,9 @@
       || new URLSearchParams(window.location.search).has('admin')
     ) {
       document.documentElement.classList.add('admin-route');
+      if (window.location.hostname.toLowerCase() === 'dhabar.dojiyestore.com') {
+        document.documentElement.classList.add('admin-access-verified');
+      }
       const robotsMeta = document.createElement('meta');
       robotsMeta.name = 'robots';
       robotsMeta.content = 'noindex, nofollow';
